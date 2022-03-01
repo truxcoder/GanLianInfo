@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -22,8 +23,11 @@ var orderMap = map[string]string{
 	"appraisals": "years,season",
 }
 
+var reConnect bool
+
 func init() {
 	db = dao.Connect()
+	FixDB()
 	casbinInit()
 }
 
@@ -50,6 +54,34 @@ func casbinInit() {
 
 func GetDb() *gorm.DB {
 	return db
+}
+
+// FixDB 断线重连
+func FixDB() bool {
+	if reConnect {
+		return false
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Error(err)
+	}
+	err = sqlDB.Ping()
+	if err != nil {
+		reConnect = true
+		log.Errorf("数据库Ping错误,  正在重连.\n")
+		for {
+			db = dao.Connect()
+			sqlDB, err = db.DB()
+			_err := sqlDB.Ping()
+			if _err == nil {
+				reConnect = false
+				log.Successf("数据库恢复, 时间为: %s\n", time.Now())
+				break
+			}
+			time.Sleep(5 * time.Minute)
+		}
+	}
+	return true
 }
 
 func GetEnforcer() *casbin.Enforcer {

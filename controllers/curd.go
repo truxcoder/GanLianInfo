@@ -30,6 +30,8 @@ func init() {
 	maps["dis_dict"] = reflect.TypeOf(models.DisDict{})
 	maps["edu_dict"] = reflect.TypeOf(models.EduDict{})
 	maps["report"] = reflect.TypeOf(models.Report{})
+	maps["entry_exit"] = reflect.TypeOf(models.EntryExit{})
+	maps["affair"] = reflect.TypeOf(models.Affair{})
 }
 
 func Add(c *gin.Context) {
@@ -60,8 +62,8 @@ func Update(c *gin.Context) {
 		r = Errors.ServerError
 		log.Error(err)
 	} else {
-		log.Successf("model:%+v\n", model)
-		db.Debug().Model(model).Updates(model)
+		//log.Successf("model:%+v\n", model)
+		db.Model(model).Updates(model)
 		r = gin.H{"message": "更新成功！", "code": 20000}
 	}
 	c.JSON(200, r)

@@ -59,6 +59,7 @@ type ErrorStruct struct {
 	Delete            map[string]interface{}
 	NoData            map[string]interface{}
 	ServerError       map[string]interface{}
+	DatabaseError     map[string]interface{}
 }
 
 var Errors = ErrorStruct{
@@ -95,5 +96,8 @@ var Errors = ErrorStruct{
 		"message": "服务器错误！！",
 		"code":    80503,
 	},
+	DatabaseError: map[string]interface{}{
+		"message": "后端数据库连接错误, 请通知管理员检查网络连接状况!",
+		"code":    80503,
+	},
 }
-

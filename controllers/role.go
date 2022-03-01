@@ -30,7 +30,7 @@ func RoleList(c *gin.Context) {
 	for _, v := range result {
 		var perRole PerRole
 		perRole.Id = v[0]
-		db.Debug().Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id").Where(&perRole).First(&perRole)
+		db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id").Where(&perRole).First(&perRole)
 		perRole.Role = v[1]
 		roles = append(roles, perRole)
 	}

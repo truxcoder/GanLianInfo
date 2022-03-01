@@ -42,6 +42,7 @@ type SearchMod struct {
 	PassExamDay             string   `json:"passExamDay"`
 	HasPassport             string   `json:"hasPassport"`
 	HasAppraisalIncompetent string   `json:"hasAppraisalIncompetent"`
+	HasReport               string   `json:"hasReport"`
 	Award                   []int8   `json:"award"`
 	Punish                  []int8   `json:"punish"`
 }
@@ -401,8 +402,13 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		paramList = append(paramList, yearsAgo(3))
 	}
 	if sm.HasPassport != "" {
-		whereStr += " AND has_passport = ?"
-		paramList = append(paramList, getBool(sm.HasPassport))
+		//whereStr += " AND has_passport = ?"
+		//paramList = append(paramList, getBool(sm.HasPassport))
+		if sm.HasPassport == "是" {
+			whereStr += " AND (passport is not null and json_value(personnels.passport, '$[0]' RETURNING number) <> 0)"
+		} else {
+			whereStr += " AND (passport is null or json_value(personnels.passport, '$[0]' RETURNING number) = 0)"
+		}
 	}
 	if sm.HasAppraisalIncompetent != "" {
 		if sm.HasAppraisalIncompetent == "是" {
@@ -411,6 +417,15 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 			whereStr += " AND personnels.id not in (?)"
 		}
 		paramList = append(paramList, db.Table("appraisals").Select("personnel_id").Where("conclusion in ('不称职','不确定等次')"))
+	}
+	if sm.HasReport != "" {
+		if sm.HasReport == "是" {
+			whereStr += " AND personnels.id in (?)"
+		} else {
+			whereStr += " AND personnels.id not in (?)"
+		}
+		paramList = append(paramList, db.Table("person_reports").Select("personnel_id").Where("report_id in (?)",
+			db.Table("reports").Select("id").Where("step <> ?", 99)))
 	}
 	if len(sm.Award) > 0 {
 		whereStr += " AND personnels.id in (?)"

@@ -330,11 +330,11 @@ func TestSearch(t *testing.T) {
 
 func TestCreateTable(t *testing.T) {
 	var err error
-	err = db.Migrator().DropTable(&models.PersonTrain{})
+	err = db.Migrator().DropTable(&models.Affair{})
 	if err != nil {
 		log.Error(err)
 	}
-	err = db.AutoMigrate(&models.PersonTrain{})
+	err = db.AutoMigrate(&models.Affair{})
 	if err != nil {
 		log.Error(err)
 	}

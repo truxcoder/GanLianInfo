@@ -61,6 +61,7 @@ type Personnel struct {
 	IsSecret                bool      `json:"isSecret" gorm:"default:0"`
 	PassExamDay             time.Time `json:"passExamDay"`
 	HasPassport             bool      `json:"hasPassport" gorm:"default:0"`
+	Passport                string    `json:"passport"`
 	Phone                   string    `json:"phone" gorm:"size:15"`
 	Photo                   string    `json:"photo" gorm:"size:200"`
 	UserType                int8      `json:"userType"`
@@ -181,6 +182,7 @@ type Module struct {
 	Name      string `json:"name"`
 	Title     string `json:"title"`
 	Paths     string `json:"path"`
+	Param     string `json:"param"`
 	Rank      int8   `json:"rank"`
 	Component string `json:"component"`
 	Redirect  string `json:"redirect"`
@@ -253,6 +255,25 @@ type PersonReport struct {
 //	StepTime time.Time     `json:"stepTime"`
 //	Content  datatype.Clob `json:"content"`
 //}
+
+type EntryExit struct {
+	Base
+	PersonnelId string    `json:"personnelId"`
+	Passport    int8      `json:"passport"`
+	EnterTime   time.Time `json:"enterTime"`   //入境时间
+	ExitTime    time.Time `json:"exitTime"`    //出境时间
+	Destination string    `json:"destination"` //目的地
+	Aim         string    `json:"aim"`         //出境目的
+	IsReport    int8      `json:"isReport"`    //是否报备
+}
+
+type Affair struct {
+	Base
+	PersonnelId string        `json:"personnelId"`
+	Title       string        `json:"title"`
+	Category    int8          `json:"category"`
+	Intro       datatype.Clob `json:"intro"`
+}
 
 type TextSize struct {
 	Base

@@ -13,9 +13,25 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func genDB() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if controllers.FixDB() {
+			c.Next()
+		} else {
+			r := controllers.Errors.DatabaseError
+			c.JSON(200, r)
+		}
+	}
+}
+
 func Register() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
+	//router := gin.Default()
+	// 新建一个没有任何默认中间件的路由
+	router := gin.New()
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+	router.Use(genDB())
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 	config.AddAllowHeaders("X-Token")
@@ -145,8 +161,21 @@ func Register() *gin.Engine {
 	report := router.Group("report")
 	{
 		report.POST("list", controllers.ReportList)
+		report.POST("one", controllers.ReportOne)
+		report.POST("detail", controllers.ReportDetail)
+		report.POST("steps", controllers.ReportSteps)
 		report.POST("add", controllers.ReportAdd)
+		report.POST("update", controllers.ReportUpdate)
 		report.POST("person_add", controllers.PersonReportAdd)
+	}
+	entryExit := router.Group("entry_exit")
+	{
+		entryExit.POST("list", controllers.EntryExitList)
+	}
+	affair := router.Group("affair")
+	{
+		affair.POST("list", controllers.AffairList)
+		affair.POST("one", controllers.AffairOne)
 	}
 	return router
 }
