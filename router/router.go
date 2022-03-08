@@ -47,6 +47,8 @@ func Register() *gin.Engine {
 		user.POST("/login", controllers.Login)
 		//user.POST("/logout", controllers.Logout)
 		user.POST("/info", controllers.UserInfo)
+		user.POST("/organ", controllers.GetPersonOrganId)
+		user.POST("/organs", controllers.GetPersonOrgans)
 		//user.POST("/userinfo", controllers.GetUserInfo)
 		//user.POST("/police", controllers.PoliceInfo)
 		//user.POST("/photo", controllers.PolicePhoto)

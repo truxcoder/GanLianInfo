@@ -52,15 +52,17 @@ type Personnel struct {
 	StartJobDay             time.Time `json:"startJobDay"`
 	FullTimeEdu             string    `json:"fullTimeEdu"`
 	FullTimeMajor           string    `json:"fullTimeMajor"`
-	PartTimeEdu             string    `json:"partTimeEdu"`
+	FullTimeSchool          string    `json:"fullTimeSchool"`
+	PartTimeEdu             string    `json:"partTimeEdu" update:"part_time_edu"`
+	PartTimeMajor           string    `json:"partTimeMajor" update:"part_time_major"`
+	PartTimeSchool          string    `json:"partTimeSchool" update:"part_time_school"`
 	OrganID                 string    `json:"organId" gorm:"size:50"`
 	DepartmentId            string    `json:"departmentId" gorm:"size:50"`
 	BePoliceDay             time.Time `json:"bePoliceDay"`
 	Training                string    `json:"training"`
 	ProCert                 string    `json:"proCert"`
-	IsSecret                bool      `json:"isSecret" gorm:"default:0"`
+	IsSecret                int8      `json:"isSecret" gorm:"default:0"`
 	PassExamDay             time.Time `json:"passExamDay"`
-	HasPassport             bool      `json:"hasPassport" gorm:"default:0"`
 	Passport                string    `json:"passport"`
 	Phone                   string    `json:"phone" gorm:"size:15"`
 	Photo                   string    `json:"photo" gorm:"size:200"`
@@ -143,8 +145,8 @@ type Post struct {
 type Position struct {
 	Base
 	Name     string `json:"name"`
-	IsLeader bool   `json:"isLeader"`
-	IsChief  bool   `json:"isChief"`
+	IsLeader int8   `json:"isLeader"`
+	IsChief  int8   `json:"isChief"`
 	LevelId  int64  `json:"levelId"`
 }
 

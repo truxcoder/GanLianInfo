@@ -4,8 +4,6 @@ import (
 	"GanLianInfo/models"
 
 	"github.com/Insua/gorm-dm8/datatype"
-	log "github.com/truxcoder/truxlog"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -38,7 +36,6 @@ func AffairOne(c *gin.Context) {
 	}
 	if err = c.ShouldBindJSON(&id); err != nil {
 		r = Errors.ServerError
-		log.Error(err)
 		c.JSON(200, r)
 		return
 	}

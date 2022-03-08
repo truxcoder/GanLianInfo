@@ -390,8 +390,11 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		}
 	}
 	if sm.IsSecret != "" {
-		whereStr += " AND is_secret = ?"
-		paramList = append(paramList, getBool(sm.IsSecret))
+		if sm.IsSecret == "是" {
+			whereStr += " AND is_secret = 2"
+		} else {
+			whereStr += " AND is_secret = 1"
+		}
 	}
 	if sm.PassExamDay != "" {
 		if sm.PassExamDay == "是" {

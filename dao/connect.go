@@ -16,6 +16,9 @@ type Config struct {
 	Port     string `yaml:"port"`
 	UserName string `yaml:"userName"`
 	Password string `yaml:"password"`
+	//RedisHost     string `yaml:"redisHost"`
+	//RedisPort     string `yaml:"redisPort"`
+	//RedisPassword string `yaml:"redisPassword"`
 }
 
 var cfg Config
@@ -36,21 +39,26 @@ func init() {
 }
 
 func Connect() *gorm.DB {
-	//engine, err := truxorm.NewEngine("dm", "dm://GANLIAN:SCJD5102!@192.168.17.104:5236") //省局
-	//engine, err := truxorm.NewEngine("dm", "dm://GANLIAN:SCJD5102!@10.10.10.200:5236") //家里
-	//if err != nil {
-	//	log.Error("failed to connect", err)
-	//}
-	//return engine
 	dsn := "dm://" + cfg.UserName + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port
 	//dsn := "dm://GANLIAN:SCJD5102!@192.168.17.104:5236" //省局
 	//dsn := "dm://GANLIAN:SCJD5102!@10.10.10.200:5236" //家里
 	db, _ := gorm.Open(dm8.Open(dsn), &gorm.Config{})
-	//if err != nil {
-	//	fmt.Println("数据库连接错误:", err)
-	//}
 	return db
 }
+
+//func RedisConnect() (*redis.Client, error) {
+//	var ctx = context.Background()
+//	rdb := redis.NewClient(&redis.Options{
+//		Addr:     cfg.RedisHost + ":" + cfg.RedisPort,
+//		Password: cfg.RedisPassword, // no password set
+//		DB:       0,                 // use default DB
+//	})
+//	if _, err := rdb.Ping(ctx).Result(); err != nil {
+//		log.Error("Redis服务器连接异常")
+//		return nil, err
+//	}
+//	return rdb, nil
+//}
 
 func pathExists(path string) bool {
 	//log.Infof("path:%s", path)

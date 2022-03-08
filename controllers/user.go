@@ -162,7 +162,8 @@ func _requestPhoto(id string) []byte {
 func GetUserRoles(id string) *UserRole {
 	var p UserRole
 	p.ID = id
-	db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id", "department_id").First(&p, "id=?", id)
+	//db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id", "department_id").First(&p, "id=?", id)
+	db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id", "department_id").Where("id=?", id).Limit(1).Find(&p)
 	roles := enforcer.GetFilteredGroupingPolicy(0, id)
 	if len(roles) == 0 {
 		p.Roles = append(p.Roles, "normal")
@@ -173,6 +174,82 @@ func GetUserRoles(id string) *UserRole {
 	}
 	return &p
 }
+
+func GetPersonOrganId(c *gin.Context) {
+	var id struct {
+		ID string `json:"id"`
+	}
+	var r gin.H
+	if c.ShouldBindJSON(&id) != nil {
+		r = Errors.ServerError
+		c.JSON(200, r)
+		return
+	}
+	//if rdb != nil {
+	//	result, err := rdb.HGet(ctx, "personOrganMap", id.ID).Result()
+	//	if err == redis.Nil {
+	//		log.Errorf("redis key %s does not exist\n", id.ID)
+	//	} else if err != nil {
+	//		log.Error(err)
+	//	} else {
+	//		r = gin.H{"code": 20000, "data": result}
+	//		c.JSON(200, r)
+	//		return
+	//	}
+	//}
+	var p struct {
+		OrganId string
+	}
+
+	if id.ID == "" {
+		r = gin.H{"code": 20000, "data": id.ID}
+		c.JSON(200, r)
+		return
+	}
+	db.Table("personnels").Select("organ_id").Where("id = ?", id.ID).Limit(1).Find(&p)
+	r = gin.H{"code": 20000, "data": p.OrganId}
+	c.JSON(200, r)
+	return
+}
+
+// GetPersonOrgans 获取所有用户的id
+func GetPersonOrgans(c *gin.Context) {
+	var r gin.H
+	var p []struct {
+		ID      string
+		OrganId string
+	}
+	_map := make(map[string]string)
+	db.Table("personnels").Select("id,organ_id").Find(&p)
+	for _, v := range p {
+		_map[v.ID] = v.OrganId
+	}
+	r = gin.H{"code": 20000, "data": _map}
+	c.JSON(200, r)
+	return
+}
+
+// SetPersonOrganMap 将用户id与organ_id的map写入redis
+//func SetPersonOrganMap() {
+//	var p []struct {
+//		ID      string
+//		OrganId string
+//	}
+//	_map := make(map[string]string)
+//	db.Table("personnels").Select("id,organ_id").Find(&p)
+//	for _, v := range p {
+//		_map[v.ID] = v.OrganId
+//
+//	}
+//	if rdb != nil {
+//		res, _ := rdb.Exists(ctx, "personOrganMap").Result()
+//		log.Infof("res: %d\n", res)
+//		if res == 0 {
+//			rdb.HSet(ctx, "personOrganMap", _map)
+//		}
+//
+//	}
+//}
 
 //func GetUserList (c *gin.Context) {
 //	query := c.Request.URL.Query()

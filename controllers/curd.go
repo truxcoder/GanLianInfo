@@ -3,6 +3,7 @@ package controllers
 import (
 	"GanLianInfo/models"
 	"fmt"
+	"go/ast"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -62,8 +63,8 @@ func Update(c *gin.Context) {
 		r = Errors.ServerError
 		log.Error(err)
 	} else {
-		//log.Successf("model:%+v\n", model)
 		db.Model(model).Updates(model)
+		updateZeroFields(model)
 		r = gin.H{"message": "更新成功！", "code": 20000}
 	}
 	c.JSON(200, r)
@@ -107,4 +108,32 @@ func getInstance(c *gin.Context) (interface{}, error) {
 		return nil, err
 	}
 	return reflect.New(t).Interface(), nil
+}
+
+// updateZeroFields 更新零值字段。
+// Gorm的Updates或update如果传入的是struct，则忽略零值字段。为了保证一些字段可以归零，在model定义时加上
+// update标签，从而构建一个map，用map来更新
+func updateZeroFields(model interface{}) {
+	var result = make(map[string]interface{})
+	var total = 0
+	T := reflect.Indirect(reflect.ValueOf(model)).Type()
+	V := reflect.Indirect(reflect.ValueOf(model))
+	for i := 0; i < T.NumField(); i++ {
+		p := T.Field(i)
+		v := V.Field(i)
+
+		if !p.Anonymous && ast.IsExported(p.Name) {
+			if !v.IsZero() {
+				continue
+			}
+			if tag, ok := p.Tag.Lookup("update"); ok {
+				result[tag] = v.Interface()
+				total++
+			}
+		}
+	}
+	if total > 0 {
+		db.Model(model).Updates(result)
+		//log.Successf("更新了%d个零值字段:%+v\n", total, result)
+	}
 }

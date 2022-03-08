@@ -296,16 +296,21 @@ func TestCreateDepartmentTable(t *testing.T) {
 
 func TestGenPost(t *testing.T) {
 	var posts []struct {
-		ID         int64  `json:"id"`
-		Department string `json:"department"`
-		Organ      string `json:"organ"`
+		ID     int64     `json:"id"`
+		EndDay time.Time `json:"endDay"`
 	}
-	join := "left join departments as o on posts.organ = o.id left join departments as d on posts.department = d.id"
-	db.Table("posts").Select("posts.id,o.name as organ,d.name as department").Joins(join).Find(&posts)
+	db.Table("posts").Select("id,end_day").Find(&posts)
+	var zero time.Time
+	var total int
 	for _, v := range posts {
-		//log.Successf("id:%d, organ: %s, department: %s \n", v.ID, v.Organ, v.Department)
-		db.Table("posts").Updates(v)
+		if v.EndDay.Year() > 2022 {
+			log.Successf("id:%d, endDay: %v \n", v.ID, v.EndDay)
+			db.Table("posts").Where("id = ?", v.ID).Update("end_day", zero)
+			total++
+		}
+		//db.Table("posts").Updates(v)
 	}
+	log.Successf("total: %d\n", total)
 }
 
 func TestDMText(t *testing.T) {

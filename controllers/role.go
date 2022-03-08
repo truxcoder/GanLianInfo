@@ -54,12 +54,12 @@ func RoleAdd(c *gin.Context) {
 	added, err = enforcer.AddGroupingPolicy(role.PersonnelId, role.Role)
 	if err != nil {
 		log.Error(err)
-		r = gin.H{"code": 20000, "message": err}
+		r = gin.H{"code": 500, "message": err}
 		c.JSON(200, r)
 		return
 	}
 	if !added {
-		r = gin.H{"code": 20000, "message": "添加失败！"}
+		r = gin.H{"code": 500, "message": "添加失败！"}
 		c.JSON(200, r)
 		return
 	}

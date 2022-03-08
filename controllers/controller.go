@@ -17,6 +17,9 @@ import (
 )
 
 var db *gorm.DB
+
+//var rdb *redis.Client
+//var ctx = context.Background()
 var enforcer *casbin.Enforcer
 
 var orderMap = map[string]string{
@@ -27,8 +30,12 @@ var reConnect bool
 
 func init() {
 	db = dao.Connect()
+	//if rdb, err = dao.RedisConnect(); err != nil {
+	//	log.Error(err)
+	//}
 	FixDB()
 	casbinInit()
+	//SetPersonOrganMap()
 }
 
 type IdStruct struct {
@@ -75,6 +82,11 @@ func FixDB() bool {
 			_err := sqlDB.Ping()
 			if _err == nil {
 				reConnect = false
+				// 断线修复后初始化casbin模型
+				casbinInit()
+				//if rdb, err = dao.RedisConnect(); err != nil {
+				//	log.Error(err)
+				//}
 				log.Successf("数据库恢复, 时间为: %s\n", time.Now())
 				break
 			}
@@ -82,10 +94,6 @@ func FixDB() bool {
 		}
 	}
 	return true
-}
-
-func GetEnforcer() *casbin.Enforcer {
-	return enforcer
 }
 
 func getPageData(c *gin.Context) (size int, offset int) {
