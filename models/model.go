@@ -10,14 +10,14 @@ import (
 )
 
 type Base struct {
-	ID        int64 `json:"id" gorm:"autoIncrement:false;primaryKey"`
+	ID        int64 `json:"id,string" gorm:"autoIncrement:false;primaryKey"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Version   int8
 }
 
 type BaseId struct {
-	ID int64 `json:"id" gorm:"autoIncrement:false;primaryKey"`
+	ID int64 `json:"id,string" gorm:"autoIncrement:false;primaryKey"`
 }
 
 func (b *BaseId) BeforeCreate(tx *gorm.DB) (err error) {
@@ -36,9 +36,52 @@ func (b *Base) BeforeUpdate(tx *gorm.DB) (err error) {
 }
 
 type Personnel struct {
+	Base
+	UserId                  string    `json:"userId"`
+	Name                    string    `json:"name" gorm:"size:50"`
+	Gender                  string    `json:"gender" gorm:"size:50"`
+	Nation                  string    `json:"nation" gorm:"size:50"`
+	IdCode                  string    `json:"idCode" gorm:"size:50"`
+	Birthday                time.Time `json:"birthday"`
+	PoliceCode              string    `json:"policeCode" gorm:"size:50"`
+	Political               string    `json:"political"`
+	JoinPartyDay            time.Time `json:"joinPartyDay"`
+	JoinPartyPrePeriodStart time.Time `json:"joinPartyPrePeriodStart"`
+	JoinPartyPrePeriodEnd   time.Time `json:"joinPartyPrePeriodEnd"`
+	StartJobDay             time.Time `json:"startJobDay"`
+	FullTimeEdu             string    `json:"fullTimeEdu"`
+	FullTimeMajor           string    `json:"fullTimeMajor"`
+	FullTimeSchool          string    `json:"fullTimeSchool"`
+	PartTimeEdu             string    `json:"partTimeEdu" update:"part_time_edu"`
+	PartTimeMajor           string    `json:"partTimeMajor" update:"part_time_major"`
+	PartTimeSchool          string    `json:"partTimeSchool" update:"part_time_school"`
+	OrganID                 string    `json:"organId"`
+	DepartmentId            string    `json:"departmentId"`
+	BePoliceDay             time.Time `json:"bePoliceDay"`
+	Training                string    `json:"training"`
+	ProCert                 string    `json:"proCert" update:"pro_cert"`
+	IsSecret                int8      `json:"isSecret"`
+	PassExamDay             time.Time `json:"passExamDay"`
+	Passport                string    `json:"passport"`
+	Phone                   string    `json:"phone"`
+	Photo                   string    `json:"photo"`
+	Hometown                string    `json:"hometown"`
+	Birthplace              string    `json:"birthplace"`
+	Health                  string    `json:"health"`
+	TechnicalTitle          string    `json:"technicalTitle"`
+	Specialty               string    `json:"specialty"`
+	UserType                int8      `json:"userType"`
+	DataStatus              int8      `json:"dataStatus"`
+	Sort                    int       `json:"sort"`
+	CreateTime              time.Time `json:"createTime"`
+	UpdateTime              time.Time `json:"updateTime"`
+}
+
+type OldPerson struct {
 	ID                      string `json:"id" gorm:"primaryKey"`
 	CreatedAt               time.Time
 	UpdatedAt               time.Time
+	UserId                  string    `json:"userId"`
 	Name                    string    `json:"name" gorm:"size:50"`
 	Gender                  string    `json:"gender" gorm:"size:50"`
 	Nation                  string    `json:"nation" gorm:"size:50"`
@@ -60,7 +103,7 @@ type Personnel struct {
 	DepartmentId            string    `json:"departmentId" gorm:"size:50"`
 	BePoliceDay             time.Time `json:"bePoliceDay"`
 	Training                string    `json:"training"`
-	ProCert                 string    `json:"proCert"`
+	ProCert                 string    `json:"proCert" update:"pro_cert"`
 	IsSecret                int8      `json:"isSecret" gorm:"default:0"`
 	PassExamDay             time.Time `json:"passExamDay"`
 	Passport                string    `json:"passport"`
@@ -87,14 +130,28 @@ type Department struct {
 	BusDeptCode string    `json:"busDeptCode"`
 	ParentId    string    `json:"parentId"`
 	Sort        int       `json:"sort"`
+	Headcount   int       `json:"headcount"`
+	Position    string    `json:"position"`
 	CreateTime  time.Time `json:"createTime"`
 	UpdateTime  time.Time `json:"updateTime"`
+}
+
+type Family struct {
+	Base
+	PersonnelId int64  `json:"personnelId,string"`
+	Name        string `json:"name"`
+	Gender      string `json:"gender"`
+	Relation    string `json:"relation"`
+	Organ       string `json:"organ"`
+	Post        string `json:"post"`
+	Political   string `json:"political"`
+	IsAbroad    bool   `json:"isAbroad" update:"is_abroad"`
 }
 
 // Resume 个人简历表
 type Resume struct {
 	BaseId
-	PersonnelId string `json:"personnelId" gorm:"size:50"`
+	PersonnelId int64  `json:"personnelId,string"`
 	Content     string `json:"content"`
 }
 
@@ -115,15 +172,15 @@ type Training struct {
 // PersonTrain 培训参加表
 type PersonTrain struct {
 	BaseId
-	PersonnelId string `json:"personnelId" gorm:"size:50"`
-	TrainId     int64  `json:"trainId"`
+	PersonnelId int64 `json:"personnelId,string"`
+	TrainId     int64 `json:"trainId,string"`
 }
 
 // Appraisal 人员考核表
 type Appraisal struct {
 	Base
 	OrganId     string `json:"organId" gorm:"size:50"`
-	PersonnelId string `json:"personnelId"`
+	PersonnelId int64  `json:"personnelId,string"`
 	Years       string `json:"years" gorm:"size:10"`
 	Season      int8   `json:"season"`
 	Conclusion  string `json:"conclusion"`
@@ -135,10 +192,10 @@ type Post struct {
 	Department  string    `json:"department" gorm:"size:200"`
 	Organ       string    `json:"organ" gorm:"size:200"`
 	StartDay    time.Time `json:"startDay"`
-	EndDay      time.Time `json:"endDay"`
-	PositionId  int64     `json:"positionId"`
-	LevelId     int64     `json:"levelId"`
-	PersonnelId string    `json:"personnelId" gorm:"size:50"`
+	EndDay      time.Time `json:"endDay" update:"end_day"`
+	PositionId  int64     `json:"positionId,string"`
+	LevelId     int64     `json:"levelId,string"`
+	PersonnelId int64     `json:"personnelId,string" gorm:"size:50"`
 }
 
 // Position 职务名称表
@@ -147,7 +204,7 @@ type Position struct {
 	Name     string `json:"name"`
 	IsLeader int8   `json:"isLeader"`
 	IsChief  int8   `json:"isChief"`
-	LevelId  int64  `json:"levelId"`
+	LevelId  int64  `json:"levelId,string"`
 }
 
 // Level 职务等级表（副科级、正科级、副处级……）
@@ -160,7 +217,7 @@ type Level struct {
 // Award 人员奖励表
 type Award struct {
 	Base
-	PersonnelId string    `json:"personnelId" gorm:"size:50"`
+	PersonnelId int64     `json:"personnelId,string" gorm:"size:50"`
 	Category    int8      `json:"category"`
 	GetTime     time.Time `json:"getTime"`
 	Grade       int8      `json:"grade"`
@@ -171,7 +228,7 @@ type Award struct {
 // Punish 人员处理表
 type Punish struct {
 	Base
-	PersonnelId string    `json:"personnelId" gorm:"size:50"`
+	PersonnelId int64     `json:"personnelId,string" gorm:"size:50"`
 	Category    int8      `json:"category"`
 	GetTime     time.Time `json:"getTime"`
 	Grade       int8      `json:"grade"`
@@ -189,15 +246,15 @@ type Module struct {
 	Component string `json:"component"`
 	Redirect  string `json:"redirect"`
 	Icon      string `json:"icon"`
-	Parent    int64  `json:"parent"`
+	Parent    int64  `json:"parent,string"`
 	Orders    int8   `json:"order"`
 }
 
 // RoleDict 角色字典
 type RoleDict struct {
 	Base
-	Name  string `json:"name" gorm:"size:20"`  //英文名
-	Title string `json:"title" gorm:"size:20"` //中文名
+	Name  string `json:"name" gorm:"size:100"`  //英文名
+	Title string `json:"title" gorm:"size:100"` //中文名
 }
 
 // PermissionDict 权限字典
@@ -210,10 +267,10 @@ type PermissionDict struct {
 // Discipline 人员处分表
 type Discipline struct {
 	Base
-	PersonnelId string    `json:"personnelId" gorm:"size:50"`
+	PersonnelId int64     `json:"personnelId,string"`
 	Category    int8      `json:"category"`
 	GetTime     time.Time `json:"getTime"`
-	DictId      int64     `json:"dictId"`
+	DictId      int64     `json:"dictId,string"`
 	Content     string    `json:"content"`
 	DocNumber   string    `json:"docNumber"`
 	Deadline    time.Time `json:"deadline"`
@@ -246,8 +303,8 @@ type Report struct {
 
 type PersonReport struct {
 	BaseId
-	PersonnelId string `json:"personnelId"`
-	ReportId    int64  `json:"reportId"`
+	PersonnelId int64 `json:"personnelId,string"`
+	ReportId    int64 `json:"reportId,string"`
 }
 
 //type ReportStep struct {
@@ -260,7 +317,7 @@ type PersonReport struct {
 
 type EntryExit struct {
 	Base
-	PersonnelId string    `json:"personnelId"`
+	PersonnelId int64     `json:"personnelId,string"`
 	Passport    int8      `json:"passport"`
 	EnterTime   time.Time `json:"enterTime"`   //入境时间
 	ExitTime    time.Time `json:"exitTime"`    //出境时间
@@ -271,10 +328,18 @@ type EntryExit struct {
 
 type Affair struct {
 	Base
-	PersonnelId string        `json:"personnelId"`
+	PersonnelId int64         `json:"personnelId,string"`
 	Title       string        `json:"title"`
 	Category    int8          `json:"category"`
 	Intro       datatype.Clob `json:"intro"`
+}
+
+// Talent 人才表
+type Talent struct {
+	Base
+	PersonnelId int64  `json:"personnelId,string"`
+	Category    int8   `json:"category"`
+	Skill       string `json:"skill"`
 }
 
 type TextSize struct {

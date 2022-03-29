@@ -1,8 +1,11 @@
 package dao
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+
+	"github.com/go-redis/redis/v8"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	log "github.com/truxcoder/truxlog"
@@ -12,13 +15,13 @@ import (
 )
 
 type Config struct {
-	Host     string `yaml:"host"`
-	Port     string `yaml:"port"`
-	UserName string `yaml:"userName"`
-	Password string `yaml:"password"`
-	//RedisHost     string `yaml:"redisHost"`
-	//RedisPort     string `yaml:"redisPort"`
-	//RedisPassword string `yaml:"redisPassword"`
+	Host          string `yaml:"host"`
+	Port          string `yaml:"port"`
+	UserName      string `yaml:"userName"`
+	Password      string `yaml:"password"`
+	RedisHost     string `yaml:"redisHost"`
+	RedisPort     string `yaml:"redisPort"`
+	RedisPassword string `yaml:"redisPassword"`
 }
 
 var cfg Config
@@ -46,19 +49,19 @@ func Connect() *gorm.DB {
 	return db
 }
 
-//func RedisConnect() (*redis.Client, error) {
-//	var ctx = context.Background()
-//	rdb := redis.NewClient(&redis.Options{
-//		Addr:     cfg.RedisHost + ":" + cfg.RedisPort,
-//		Password: cfg.RedisPassword, // no password set
-//		DB:       0,                 // use default DB
-//	})
-//	if _, err := rdb.Ping(ctx).Result(); err != nil {
-//		log.Error("Redis服务器连接异常")
-//		return nil, err
-//	}
-//	return rdb, nil
-//}
+func RedisConnect() (*redis.Client, error) {
+	var ctx = context.Background()
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisHost + ":" + cfg.RedisPort,
+		Password: cfg.RedisPassword, // no password set
+		DB:       0,                 // use default DB
+	})
+	if _, err := rdb.Ping(ctx).Result(); err != nil {
+		log.Error("Redis服务器连接异常")
+		return nil, err
+	}
+	return rdb, nil
+}
 
 func pathExists(path string) bool {
 	//log.Infof("path:%s", path)

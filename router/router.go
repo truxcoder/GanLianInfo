@@ -42,6 +42,7 @@ func Register() *gin.Engine {
 	router.POST("/update", controllers.Update)
 	router.POST("/delete", controllers.Delete)
 	router.POST("/dashboard", controllers.DashboardData)
+	router.POST("/upload", controllers.Upload)
 	user := router.Group("user")
 	{
 		user.POST("/login", controllers.Login)
@@ -57,9 +58,6 @@ func Register() *gin.Engine {
 	module := router.Group("module")
 	{
 		module.POST("/list", controllers.GetModuleList)
-		module.POST("/add", controllers.ModuleAdd)
-		module.POST("/update", controllers.ModuleUpdate)
-		module.POST("/delete", controllers.ModuleDelete)
 		module.POST("/order", controllers.ModuleOrder)
 		module.POST("/role", controllers.ModuleRole)
 	}
@@ -68,11 +66,13 @@ func Register() *gin.Engine {
 		personnel.POST("/list", controllers.PersonnelList)
 		personnel.POST("/detail", controllers.PersonnelDetail)
 		personnel.POST("/update", controllers.PersonnelUpdate)
+		personnel.POST("/delete", controllers.PersonnelDelete)
 		personnel.POST("/searchName", controllers.SearchPersonnelName)
 		personnel.POST("/nameList", controllers.GetPersonnelName)
 		personnel.POST("/name_list", controllers.PersonnelNameList)
 		personnel.POST("/dict", controllers.EduDictList)
 		personnel.POST("/resume", controllers.PersonnelResume)
+		personnel.POST("/update_id_code", controllers.UpdateIdCode)
 	}
 	//organ := router.Group("organ")
 	//{
@@ -83,8 +83,11 @@ func Register() *gin.Engine {
 	//}
 	department := router.Group("department")
 	{
-		department.POST("list", controllers.GetDepartmentList)
-		department.POST("organ", controllers.GetOrganList)
+		department.POST("list", controllers.DepartmentList)
+		department.POST("organ", controllers.OrganList)
+		department.POST("headcount", controllers.HeadcountList)
+		department.POST("update", controllers.DepartmentUpdate)
+		department.POST("position", controllers.DepartmentPosition)
 	}
 	training := router.Group("training")
 	{
@@ -137,6 +140,7 @@ func Register() *gin.Engine {
 		permission.POST("manage", controllers.PermissionManage)
 		permission.POST("policy", controllers.GetPolicy)
 		permission.POST("check", controllers.PermissionCheck)
+		permission.POST("act_check", controllers.PermissionActCheck)
 		permission.POST("add", controllers.PermissionAdd)
 		permission.POST("delete", controllers.PermissionDelete)
 	}
@@ -158,7 +162,10 @@ func Register() *gin.Engine {
 	data := router.Group("data")
 	{
 		data.POST("sync", controllers.DataSync)
+		data.POST("department_sync", controllers.DepartmentSync)
 		data.POST("sure", controllers.DataSure)
+		data.POST("department_sure", controllers.DepartmentSure)
+		data.POST("test", controllers.DataSyncText)
 	}
 	report := router.Group("report")
 	{
@@ -176,8 +183,18 @@ func Register() *gin.Engine {
 	}
 	affair := router.Group("affair")
 	{
-		affair.POST("list", controllers.AffairList)
+		affair.POST("list/:category", controllers.AffairList)
+		affair.POST("detail", controllers.AffairDetail)
 		affair.POST("one", controllers.AffairOne)
+	}
+	family := router.Group("family")
+	{
+		family.POST("detail", controllers.FamilyDetail)
+	}
+	talent := router.Group("talent")
+	{
+		talent.POST("list/:category", controllers.TalentList)
+		talent.POST("add", controllers.TalentAdd)
 	}
 	return router
 }

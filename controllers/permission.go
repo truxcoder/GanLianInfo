@@ -51,6 +51,36 @@ func PermissionCheck(c *gin.Context) {
 	return
 }
 
+func PermissionActCheck(c *gin.Context) {
+	var rbac struct {
+		Sub string   `json:"sub"`
+		Obj []string `json:"obj"`
+		Act string   `json:"act"`
+	}
+	var r gin.H
+	var err error
+	var result = make(map[string]bool)
+	if err = c.BindJSON(&rbac); err != nil {
+		log.Error(err)
+		r = Errors.ServerError
+		c.JSON(200, r)
+		return
+	}
+	if len(rbac.Obj) < 1 {
+		log.Error(err)
+		r = Errors.NoData
+		c.JSON(200, r)
+		return
+	}
+	for _, v := range rbac.Obj {
+		ok, _ := enforcer.Enforce(rbac.Sub, v, rbac.Act)
+		result[v] = ok
+	}
+	r = gin.H{"code": 20000, "data": &result}
+	c.JSON(200, r)
+	return
+}
+
 func GetRolePermission(c *gin.Context) {
 	var err error
 	var r gin.H
@@ -64,7 +94,6 @@ func GetRolePermission(c *gin.Context) {
 		return
 	}
 	result := enforcer.GetFilteredPolicy(0, role.Role)
-	log.Error(result)
 	r = gin.H{"code": 20000, "data": &result}
 	c.JSON(200, r)
 

@@ -3,6 +3,7 @@ package controllers
 import (
 	"GanLianInfo/models"
 	"fmt"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/truxcoder/truxlog"
@@ -14,7 +15,7 @@ type Role struct {
 }
 
 type PerRole struct {
-	Id         string `json:"id"`
+	Id         int64  `json:"id,string"`
 	Name       string `json:"name"`
 	PoliceCode string `json:"policeCode"`
 	OrganID    string `json:"organId"`
@@ -29,7 +30,8 @@ func RoleList(c *gin.Context) {
 	result := enforcer.GetGroupingPolicy()
 	for _, v := range result {
 		var perRole PerRole
-		perRole.Id = v[0]
+		_v, _ := strconv.Atoi(v[0])
+		perRole.Id = int64(_v)
 		db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id").Where(&perRole).First(&perRole)
 		perRole.Role = v[1]
 		roles = append(roles, perRole)
@@ -50,7 +52,6 @@ func RoleAdd(c *gin.Context) {
 		c.JSON(200, r)
 		return
 	}
-	log.Infof("PersonnelId:%s, Role:%s\n", role.PersonnelId, role.Role)
 	added, err = enforcer.AddGroupingPolicy(role.PersonnelId, role.Role)
 	if err != nil {
 		log.Error(err)
@@ -173,17 +174,37 @@ func RoleDictUpdate(c *gin.Context) {
 }
 
 func RoleDictDelete(c *gin.Context) {
-	var id IdStruct
+	var dict models.RoleDict
 	var r gin.H
 	var err error
-	if err = c.ShouldBindJSON(&id); err != nil {
+	if err = c.ShouldBindJSON(&dict); err != nil {
 		r = Errors.ServerError
 		log.Error(err)
 		c.JSON(200, r)
 		return
 	}
+	// 验证是角色是否分配了权限
+	policy := enforcer.GetFilteredPolicy(0, dict.Name)
+	if len(policy) > 0 {
+		r = map[string]interface{}{
+			"message": "失败! 该角色分配了权限，请先解除权限!",
+			"code":    80405,
+		}
+		c.JSON(200, r)
+		return
+	}
+	// 验证是否将用户分配给该角色
+	user, _ := enforcer.GetUsersForRole(dict.Name)
+	if len(user) > 0 {
+		r = map[string]interface{}{
+			"message": "失败! 有人员属于这个角色，请将相关人员取消该角色绑定!",
+			"code":    80405,
+		}
+		c.JSON(200, r)
+		return
+	}
 
-	result := db.Delete(&models.RoleDict{}, &id.Id)
+	result := db.Delete(&models.RoleDict{}, &dict.ID)
 	err = result.Error
 	if err != nil {
 		log.Error(err)

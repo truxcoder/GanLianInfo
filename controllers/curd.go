@@ -33,6 +33,8 @@ func init() {
 	maps["report"] = reflect.TypeOf(models.Report{})
 	maps["entry_exit"] = reflect.TypeOf(models.EntryExit{})
 	maps["affair"] = reflect.TypeOf(models.Affair{})
+	maps["family"] = reflect.TypeOf(models.Family{})
+	maps["talent"] = reflect.TypeOf(models.Talent{})
 }
 
 func Add(c *gin.Context) {

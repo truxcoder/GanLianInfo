@@ -2,10 +2,15 @@ package controllers
 
 import (
 	"GanLianInfo/dao"
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/gin-gonic/gin"
 
@@ -18,12 +23,18 @@ import (
 
 var db *gorm.DB
 
-//var rdb *redis.Client
-//var ctx = context.Background()
+var rdb *redis.Client
+var ctx = context.Background()
 var enforcer *casbin.Enforcer
 
+// 列表页排序字典
 var orderMap = map[string]string{
 	"appraisals": "years,season",
+}
+
+var detailOrderMap = map[string]string{
+	"appraisals": "years,season",
+	"posts":      "start_day desc",
 }
 
 var reConnect bool
@@ -35,6 +46,7 @@ func init() {
 	//}
 	FixDB()
 	casbinInit()
+	redisInit()
 	//SetPersonOrganMap()
 }
 
@@ -43,7 +55,32 @@ type IdStruct struct {
 }
 
 type ID struct {
-	ID int64 `json:"id"`
+	ID int64 `json:"id,string"`
+}
+
+func (i *IdStruct) UnmarshalJSON(data []byte) error {
+	var id struct {
+		Id []string `json:"id"`
+	}
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	if err := json.Unmarshal(data, &id); err != nil {
+		return err
+	}
+	for _, v := range id.Id {
+		_v, err := strconv.Atoi(v)
+		if err != nil {
+			return err
+		}
+		i.Id = append(i.Id, int64(_v))
+	}
+	return nil
+}
+
+func redisInit() {
+	var err error
+	if rdb, err = dao.RedisConnect(); err != nil {
+		log.Error(err)
+	}
 }
 
 func casbinInit() {
@@ -54,6 +91,9 @@ func casbinInit() {
 	model := filepath.Join(dir, "model.conf")
 	var err error
 	enforcer, err = casbin.NewEnforcer(model, a)
+	if err != nil {
+		log.Error(err)
+	}
 	if err != nil {
 		log.Error(err)
 	}
@@ -75,7 +115,7 @@ func FixDB() bool {
 	err = sqlDB.Ping()
 	if err != nil {
 		reConnect = true
-		log.Errorf("数据库Ping错误,  正在重连.\n")
+		log.Errorf("数据库Ping错误,  正在重连...\n")
 		for {
 			db = dao.Connect()
 			sqlDB, err = db.DB()
@@ -84,10 +124,7 @@ func FixDB() bool {
 				reConnect = false
 				// 断线修复后初始化casbin模型
 				casbinInit()
-				//if rdb, err = dao.RedisConnect(); err != nil {
-				//	log.Error(err)
-				//}
-				log.Successf("数据库恢复, 时间为: %s\n", time.Now())
+				log.Successf("数据库恢复, 时间为: %s\n", time.Now().Format(timeFormat))
 				break
 			}
 			time.Sleep(5 * time.Minute)
@@ -106,14 +143,19 @@ func getPageData(c *gin.Context) (size int, offset int) {
 }
 
 func buildWhere(c *gin.Context) string {
-	var where string
 	organId := c.Query("organId")
-	if organId == "" {
-		where = " 1 = 1 "
-	} else {
-		where = "personnel_id in (select id from personnels where organ_id = '" + organId + "')"
+	category := c.Param("category")
+	if organId == "" && category == "" {
+		return " 1 = 1 "
 	}
-	return where
+	if category == "" && organId != "" {
+		return "personnel_id in (select id from personnels where organ_id = '" + organId + "')"
+	}
+	if category != "" && organId == "" {
+		return "category = " + category
+	} else {
+		return "personnel_id in (select id from personnels where organ_id = '" + organId + "') and category = " + category
+	}
 }
 
 func getList(c *gin.Context, table string, mo interface{}, mos interface{}, selectStr *string, joinStr *string) {
@@ -175,15 +217,17 @@ func getList(c *gin.Context, table string, mo interface{}, mos interface{}, sele
 func getDetail(c *gin.Context, table string, mos interface{}, selectStr *string, joinStr *string) {
 	var r gin.H
 	var result *gorm.DB
+	var err error
 	var id struct {
-		ID string `json:"id"`
+		ID int64 `json:"id,string"`
 	}
-	sort, ok := orderMap[table]
+	sort, ok := detailOrderMap[table]
 	if !ok {
 		sort = "id desc"
 	}
-	if c.ShouldBindJSON(&id) != nil {
+	if err = c.ShouldBindJSON(&id); err != nil {
 		r = Errors.ServerError
+		log.Error(err)
 		c.JSON(200, r)
 		return
 	}

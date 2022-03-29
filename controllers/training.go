@@ -3,6 +3,7 @@ package controllers
 import (
 	"GanLianInfo/models"
 	"fmt"
+	"strconv"
 
 	log "github.com/truxcoder/truxlog"
 	"gorm.io/gorm"
@@ -59,10 +60,11 @@ func TrainingDetail(c *gin.Context) {
 	var r gin.H
 	var result *gorm.DB
 	var id struct {
-		ID string `json:"id"`
+		ID int64 `json:"id,string"`
 	}
-	if c.ShouldBindJSON(&id) != nil {
+	if err := c.ShouldBindJSON(&id); err != nil {
 		r = Errors.ServerError
+		log.Error(err)
 		c.JSON(200, r)
 		return
 	}
@@ -82,7 +84,7 @@ func TrainPersonList(c *gin.Context) {
 	var mos []models.PersonTrain
 	var r gin.H
 	var id struct {
-		ID int64 `json:"id"`
+		ID int64 `json:"id,string"`
 	}
 	if c.ShouldBindJSON(&id) != nil {
 		r = Errors.ServerError
@@ -117,15 +119,23 @@ func TrainPersonAdd(c *gin.Context) {
 func TrainPersonDelete(c *gin.Context) {
 	var r gin.H
 	var mos struct {
-		PersonnelId string  `json:"personnelId"`
-		TrainId     []int64 `json:"trainId"`
+		PersonnelId int64    `json:"personnelId,string"`
+		TrainId     []string `json:"trainId"`
 	}
-	if c.ShouldBindJSON(&mos) != nil {
+	var trainIdSlice []int64
+	if err := c.ShouldBindJSON(&mos); err != nil {
 		r = Errors.ServerError
+		log.Error(err)
 		c.JSON(200, r)
 		return
 	}
-	result := db.Debug().Where("personnel_id = ? and train_id in (?)", mos.PersonnelId, mos.TrainId).Delete(&models.PersonTrain{})
+	if len(mos.TrainId) > 0 {
+		for _, v := range mos.TrainId {
+			_v, _ := strconv.Atoi(v)
+			trainIdSlice = append(trainIdSlice, int64(_v))
+		}
+	}
+	result := db.Debug().Where("personnel_id = ? and train_id in (?)", mos.PersonnelId, trainIdSlice).Delete(&models.PersonTrain{})
 	err := result.Error
 	if err != nil {
 		log.Error(err)

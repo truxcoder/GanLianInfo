@@ -25,12 +25,17 @@ func AffairList(c *gin.Context) {
 	getList(c, "affairs", &mo, &mos, &selectStr, &joinStr)
 }
 
+func AffairDetail(c *gin.Context) {
+	var mos []models.Affair
+	var selectStr string
+	var joinStr string
+	getDetail(c, "affairs", &mos, &selectStr, &joinStr)
+}
+
 func AffairOne(c *gin.Context) {
 	var err error
 	var r gin.H
-	var id struct {
-		ID int64 `json:"id"`
-	}
+	var id ID
 	var mo struct {
 		Intro datatype.Clob `json:"intro"`
 	}

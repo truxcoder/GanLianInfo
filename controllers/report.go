@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"GanLianInfo/models"
+	"strconv"
 
 	"github.com/Insua/gorm-dm8/datatype"
 
@@ -11,7 +12,7 @@ import (
 )
 
 type PersonSimple struct {
-	ID             string `json:"id"`
+	ID             int64  `json:"id,string"`
 	Name           string `json:"name"`
 	PoliceCode     string `json:"policeCode"`
 	OrganId        string `json:"organId"`
@@ -30,8 +31,8 @@ func ReportList(c *gin.Context) {
 	var r gin.H
 	var ids []int64
 	var personnels []PersonSimple
-	var personMap = make(map[string]*PersonSimple)
-	var personReportMap = make(map[int64][]string)
+	var personMap = make(map[int64]*PersonSimple)
+	var personReportMap = make(map[int64][]int64)
 	result := db.Table("reports").Omit("reports.intro, reports.steps").Find(&mos)
 	for _, v := range mos {
 		ids = append(ids, v.ID)
@@ -65,9 +66,7 @@ func ReportList(c *gin.Context) {
 func ReportOne(c *gin.Context) {
 	var err error
 	var r gin.H
-	var id struct {
-		ID int64 `json:"id"`
-	}
+	var id ID
 	var mo struct {
 		Intro datatype.Clob `json:"intro"`
 		Steps datatype.Clob `json:"steps"`
@@ -87,9 +86,7 @@ func ReportDetail(c *gin.Context) {
 	var err error
 	var mos []Report
 	var r gin.H
-	var id struct {
-		ID string `json:"id"`
-	}
+	var id ID
 	if err = c.ShouldBindJSON(&id); err != nil {
 		r = Errors.ServerError
 		log.Error(err)
@@ -112,7 +109,7 @@ func ReportSteps(c *gin.Context) {
 	var r gin.H
 	var err error
 	var mo struct {
-		ID    int64         `json:"id"`
+		ID    int64         `json:"id,string"`
 		Steps datatype.Clob `json:"steps"`
 	}
 	if err = c.ShouldBindJSON(&mo); err != nil {
@@ -130,10 +127,12 @@ func ReportAdd(c *gin.Context) {
 	var r gin.H
 	var err error
 	var personReports []models.PersonReport
+
 	var model struct {
 		Report models.Report `json:"report"`
 		Person []string      `json:"person"`
 	}
+
 	if err = c.ShouldBindJSON(&model); err != nil {
 		r = Errors.ServerError
 		log.Error(err)
@@ -148,7 +147,8 @@ func ReportAdd(c *gin.Context) {
 	}
 	id := model.Report.ID
 	for _, v := range model.Person {
-		personReports = append(personReports, models.PersonReport{ReportId: id, PersonnelId: v})
+		_v, _ := strconv.Atoi(v)
+		personReports = append(personReports, models.PersonReport{ReportId: id, PersonnelId: int64(_v)})
 	}
 	db.Table("person_reports").Create(personReports)
 	r = gin.H{"message": "添加成功！", "code": 20000}
@@ -174,12 +174,19 @@ func ReportUpdate(c *gin.Context) {
 	id := model.Report.ID
 	if len(model.Add) > 0 {
 		for _, v := range model.Add {
-			personReports = append(personReports, models.PersonReport{ReportId: id, PersonnelId: v})
+			_v, _ := strconv.Atoi(v)
+			personReports = append(personReports, models.PersonReport{ReportId: id, PersonnelId: int64(_v)})
 		}
 		db.Table("person_reports").Create(personReports)
 	}
 	if len(model.Del) > 0 {
-		result := db.Where("report_id = ? and personnel_id in ?", id, model.Del).Delete(models.PersonReport{})
+		var _del []int64
+		for _, v := range model.Del {
+			_v, _ := strconv.Atoi(v)
+			_del = append(_del, int64(_v))
+		}
+		log.Successf("_del: %v\n", _del)
+		result := db.Where("report_id = ? and personnel_id in ?", id, _del).Delete(models.PersonReport{})
 		err = result.Error
 		if err != nil {
 			log.Error(err)
