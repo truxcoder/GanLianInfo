@@ -5,13 +5,15 @@ go 1.17
 replace faker => ../faker
 
 require (
-	faker v0.0.0-00010101000000-000000000000
 	github.com/Insua/gorm-dm8 v1.0.11
+	github.com/Masterminds/squirrel v1.5.2
 	github.com/bwmarrin/snowflake v0.3.0
-	github.com/casbin/casbin/v2 v2.39.1
-	github.com/casbin/gorm-adapter/v3 v3.4.6
+	github.com/casbin/casbin/v2 v2.44.1
+	github.com/casbin/gorm-adapter/v3 v3.5.1
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/cors v1.3.1
-	github.com/gin-gonic/gin v1.7.4
+	github.com/gin-gonic/gin v1.7.7
+	github.com/go-redis/redis/v8 v8.11.4
 	github.com/ilyakaznacheev/cleanenv v1.2.6
 	github.com/json-iterator/go v1.1.12
 	github.com/pkg/errors v0.8.1
@@ -31,13 +33,10 @@ require (
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
-	github.com/go-redis/redis/v8 v8.11.4 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.10.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
@@ -49,6 +48,8 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.2 // indirect
 	github.com/joho/godotenv v1.4.0 // indirect
+	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
+	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

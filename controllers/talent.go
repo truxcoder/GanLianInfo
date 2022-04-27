@@ -37,7 +37,7 @@ func TalentAdd(c *gin.Context) {
 	)
 
 	if err = c.ShouldBindJSON(&mo); err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return

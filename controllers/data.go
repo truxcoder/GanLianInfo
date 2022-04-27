@@ -23,6 +23,7 @@ const (
 	monthFormat = "2006-01"
 )
 
+// Personnel 人员同步结构体
 type Personnel struct {
 	ID           int64        `json:"id,string"`
 	UserID       string       `json:"userId"`
@@ -32,6 +33,7 @@ type Personnel struct {
 	Birthday     time.Time    `json:"birthday"`
 	OrganID      string       `json:"organID"`
 	DepartmentID string       `json:"deptId"`
+	Username     string       `json:"userName"`
 	UserType     int8         `json:"userType"`
 	DataStatus   int8         `json:"dataStatus"`
 	Phone        string       `json:"phone"`
@@ -246,6 +248,7 @@ func DataSync(c *gin.Context) {
 			v.ID = personnel.ID
 			updated = append(updated, v)
 		} else if isFound && isUpdated {
+			// TODO: 这里的删除逻辑需要大数据中心开放身份证验证接口，否则无法实现
 			//v.ID = personnel.ID
 			//deleted = append(deleted, v)
 		}
@@ -272,7 +275,8 @@ func DataSure(c *gin.Context) {
 	if method != "delete" {
 		if err := c.ShouldBindJSON(&p); err != nil {
 			log.Error(err)
-			r = Errors.ServerError
+			//r = Errors.ServerError
+			r = GetError(CodeBind)
 			c.JSON(200, r)
 			return
 		}
@@ -282,7 +286,8 @@ func DataSure(c *gin.Context) {
 		//	result = db.Table("personnels").Create(&v)
 		//}
 		if result := db.Table("personnels").Create(p); result.Error != nil {
-			r = Errors.Insert
+			//r = Errors.Insert
+			r = GetError(CodeAdd)
 			c.JSON(200, r)
 			return
 		}
@@ -306,7 +311,8 @@ func DataSure(c *gin.Context) {
 		}
 		if err := c.ShouldBindJSON(&id); err != nil {
 			log.Error(err)
-			r = Errors.ServerError
+			//r = Errors.ServerError
+			r = GetError(CodeBind)
 			c.JSON(200, r)
 			return
 		}
@@ -361,14 +367,16 @@ func DepartmentSure(c *gin.Context) {
 	if method != "delete" {
 		if err := c.ShouldBindJSON(&d); err != nil {
 			log.Error(err)
-			r = Errors.ServerError
+			//r = Errors.ServerError
+			r = GetError(CodeBind)
 			c.JSON(200, r)
 			return
 		}
 	}
 	if method == "add" {
 		if result := db.Table("departments").Create(&d); result.Error != nil {
-			r = Errors.Insert
+			//r = Errors.Insert
+			r = GetError(CodeAdd)
 			c.JSON(200, r)
 			return
 		}
@@ -395,7 +403,8 @@ func DepartmentSure(c *gin.Context) {
 		}
 		if err := c.ShouldBindJSON(&id); err != nil {
 			log.Error(err)
-			r = Errors.ServerError
+			//r = Errors.ServerError
+			r = GetError(CodeBind)
 			c.JSON(200, r)
 			return
 		}

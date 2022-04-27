@@ -20,7 +20,7 @@ func AwardList(c *gin.Context) {
 	selectStr := "awards.*,per.name as personnel_name, per.police_code as police_code," +
 		"departments.name as organ_name, departments.short_name as organ_short_name "
 	joinStr := "left join personnels as per on awards.personnel_id = per.id " +
-		"left join departments on departments.id = ( select organ_id from personnels where personnels.id = awards.personnel_id) "
+		"left join departments on departments.id = per.organ_id "
 	getList(c, "awards", &mo, &mos, &selectStr, &joinStr)
 }
 

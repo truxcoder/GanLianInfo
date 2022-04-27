@@ -40,7 +40,7 @@ func AffairOne(c *gin.Context) {
 		Intro datatype.Clob `json:"intro"`
 	}
 	if err = c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}

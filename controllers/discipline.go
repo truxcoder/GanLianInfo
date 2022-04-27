@@ -43,7 +43,7 @@ func DisDictList(c *gin.Context) {
 	result := db.Select("id", "name", "category", "term").Find(&dd)
 	err := result.Error
 	if err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		r = gin.H{"code": 20000, "data": &dd}
 	}

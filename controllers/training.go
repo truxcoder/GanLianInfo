@@ -21,7 +21,7 @@ func TrainingList(c *gin.Context) {
 
 	if err = c.BindJSON(&mo); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
@@ -35,19 +35,19 @@ func TrainingList(c *gin.Context) {
 
 	//先查询数据总量并返回到前端
 	if err = db.Table("trainings").Where(&mo).Where(whereTitle).Count(&count).Error; err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
 	if count == 0 {
-		r = Errors.NoData
+		r = GetError(CodeNoData)
 		c.JSON(200, r)
 		return
 	}
 	result := db.Table("trainings").Where(&mo).Where(whereTitle).Limit(size).Offset(offset).Order("start_time desc").Find(&mos)
 	err = result.Error
 	if err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		r = gin.H{"code": 20000, "data": mos, "count": count}
 	}
@@ -63,7 +63,7 @@ func TrainingDetail(c *gin.Context) {
 		ID int64 `json:"id,string"`
 	}
 	if err := c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -71,7 +71,7 @@ func TrainingDetail(c *gin.Context) {
 	result = db.Table("trainings").Where("id in (?)", db.Table("person_trains").Select("train_id").Where("personnel_id = ?", id.ID)).Order("start_time desc").Find(&mos)
 	if result.Error != nil {
 		log.Error(result.Error)
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
@@ -87,14 +87,14 @@ func TrainPersonList(c *gin.Context) {
 		ID int64 `json:"id,string"`
 	}
 	if c.ShouldBindJSON(&id) != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	result := db.Where("train_id = ?", id.ID).Find(&mos)
 	err := result.Error
 	if err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		r = gin.H{"code": 20000, "data": &mos}
 	}
@@ -106,7 +106,7 @@ func TrainPersonAdd(c *gin.Context) {
 	var r gin.H
 	var mos []models.PersonTrain
 	if c.ShouldBindJSON(&mos) != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
@@ -124,7 +124,7 @@ func TrainPersonDelete(c *gin.Context) {
 	}
 	var trainIdSlice []int64
 	if err := c.ShouldBindJSON(&mos); err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -139,7 +139,7 @@ func TrainPersonDelete(c *gin.Context) {
 	err := result.Error
 	if err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
 		r = gin.H{"message": message, "code": 20000}

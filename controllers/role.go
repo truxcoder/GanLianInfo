@@ -3,39 +3,87 @@ package controllers
 import (
 	"GanLianInfo/models"
 	"fmt"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/truxcoder/truxlog"
 )
 
 type Role struct {
-	PersonnelId string `json:"personnelId"`
-	Role        string `json:"role"`
+	AccountId string `json:"accountId"`
+	Role      string `json:"role"`
 }
 
-type PerRole struct {
-	Id         int64  `json:"id,string"`
-	Name       string `json:"name"`
-	PoliceCode string `json:"policeCode"`
-	OrganID    string `json:"organId"`
-	Role       string `json:"role"`
+type AccountRole struct {
+	Id       string `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	OrganID  string `json:"organId"`
+	Roles    string `json:"role"`
 }
 
 func RoleList(c *gin.Context) {
-	//var role Role
-	//var err error
-	var r gin.H
-	var roles []PerRole
-	result := enforcer.GetGroupingPolicy()
-	for _, v := range result {
-		var perRole PerRole
-		_v, _ := strconv.Atoi(v[0])
-		perRole.Id = int64(_v)
-		db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id").Where(&perRole).First(&perRole)
-		perRole.Role = v[1]
-		roles = append(roles, perRole)
+	var (
+		err   error
+		r     gin.H
+		roles []AccountRole
+		where string
+		args  []interface{}
+	)
+	var mo struct {
+		AccountId string `json:"accountId"`
+		Username  string `json:"username"`
+		Role      string `json:"role"`
+		OrganId   string `json:"organId"`
 	}
+	var selectStr = "casbin_rule.v0 as id, casbin_rule.v1 as roles, accounts.name, accounts.username, accounts.organ_id"
+	var joinStr = "left join accounts on accounts.id = casbin_rule.v0"
+	if err = c.BindJSON(&mo); err != nil {
+		log.Error(err)
+		r = GetError(CodeBind)
+		c.JSON(200, r)
+		return
+	}
+	where = "1=1"
+	if mo.AccountId != "" {
+		where += " and v0 = ? "
+		args = append(args, mo.AccountId)
+	}
+	if mo.Username != "" {
+		var users []string
+		var username string
+		db.Model(&models.Account{}).Where("username = ?", mo.Username).Pluck("id", &users)
+		if len(users) > 0 {
+			username = users[0]
+		}
+		where += " and v0 = ? "
+		args = append(args, username)
+	}
+	if mo.Role != "" {
+		where += " and v1= ? "
+		args = append(args, mo.Role)
+	}
+	if mo.OrganId != "" {
+		var users []string
+		db.Model(&models.Account{}).Where("organ_id = ?", mo.OrganId).Pluck("id", &users)
+		where += " and v0 in ? "
+		args = append(args, users)
+	}
+	db.Table("casbin_rule").Select(selectStr).Joins(joinStr).Where("ptype = ?", "g").Where(where, args...).Order("username asc").Find(&roles)
+	//if mo.Role != "" {
+	//	result = enforcer.GetFilteredGroupingPolicy(1, mo.Role)
+	//} else {
+	//	result = enforcer.GetGroupingPolicy()
+	//}
+	//// TODO: 等帐号系统建立后增加角色查询功能
+	//result = enforcer.GetGroupingPolicy()
+	//for _, v := range result {
+	//	var perRole PerRole
+	//	_v, _ := strconv.Atoi(v[0])
+	//	perRole.Id = int64(_v)
+	//	db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id").Where(&perRole).First(&perRole)
+	//	perRole.Role = v[1]
+	//	roles = append(roles, perRole)
+	//}
 	r = gin.H{"code": 20000, "data": &roles}
 	c.JSON(200, r)
 	return
@@ -48,11 +96,13 @@ func RoleAdd(c *gin.Context) {
 	var added bool
 	if err = c.BindJSON(&role); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
-	added, err = enforcer.AddGroupingPolicy(role.PersonnelId, role.Role)
+
+	added, err = enforcer.AddGroupingPolicy(role.AccountId, role.Role)
 	if err != nil {
 		log.Error(err)
 		r = gin.H{"code": 500, "message": err}
@@ -78,14 +128,16 @@ func RoleUpdate(c *gin.Context) {
 	var err error
 	if err = c.BindJSON(&role); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	success, err := enforcer.UpdateGroupingPolicy(role.Old, role.New)
 	if err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
@@ -108,7 +160,8 @@ func RoleDelete(c *gin.Context) {
 	var failedList []string
 	var r gin.H
 	if err := c.ShouldBindJSON(&group); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -142,7 +195,8 @@ func RoleDictList(c *gin.Context) {
 	result := db.Select("id", "name", "title").Find(&rd)
 	err := result.Error
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		r = gin.H{"code": 20000, "data": &rd}
 	}
@@ -153,7 +207,8 @@ func RoleDictAdd(c *gin.Context) {
 	var rd models.RoleDict
 	var r gin.H
 	if c.ShouldBindJSON(&rd) != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 	} else {
 		db.Create(&rd)
 		r = gin.H{"message": "添加成功！", "code": 20000}
@@ -161,15 +216,60 @@ func RoleDictAdd(c *gin.Context) {
 	c.JSON(200, r)
 }
 
+// RoleDictUpdate 修改角色
 func RoleDictUpdate(c *gin.Context) {
-	var rd models.RoleDict
+	var rd, one models.RoleDict
 	var r gin.H
+	var newPolicies [][]string
 	if c.ShouldBindJSON(&rd) != nil {
-		r = Errors.ServerError
-	} else {
-		db.Model(&rd).Updates(&rd)
-		r = gin.H{"message": "更新成功！", "code": 20000}
+		r = GetError(CodeBind)
+		c.JSON(200, r)
+		return
 	}
+	db.First(&one, rd.ID)
+	if one.Name != rd.Name {
+		// 验证是角色是否分配了权限, 如分配权限，修改对应的policy
+		policy := enforcer.GetFilteredPolicy(0, one.Name)
+		if len(policy) > 0 {
+			for _, v := range policy {
+				newPolicies = append(newPolicies, []string{rd.Name, v[1], v[2]})
+			}
+			ok, err := enforcer.UpdatePolicies(policy, newPolicies)
+			if err != nil {
+				r = gin.H{"code": 1403, "message": err.Error()}
+				c.JSON(200, r)
+				return
+			}
+			if !ok {
+				r = gin.H{"code": 1403, "message": "修改失败!"}
+				c.JSON(200, r)
+				return
+			}
+		}
+
+		// 验证是否将用户分配给该角色，如分配，则修改为新角色名
+		user, _ := enforcer.GetUsersForRole(one.Name)
+		if len(user) > 0 {
+			var oldRules, newRules [][]string
+			for _, v := range user {
+				oldRules = append(oldRules, []string{v, one.Name})
+				newRules = append(newRules, []string{v, rd.Name})
+			}
+			ok, err := enforcer.UpdateGroupingPolicies(oldRules, newRules)
+			if err != nil {
+				r = gin.H{"code": 1403, "message": err.Error()}
+				c.JSON(200, r)
+				return
+			}
+			if !ok {
+				r = gin.H{"code": 1403, "message": "修改失败!"}
+				c.JSON(200, r)
+				return
+			}
+		}
+	}
+	db.Model(&rd).Updates(&rd)
+	r = gin.H{"message": "更新成功！", "code": 20000}
 	c.JSON(200, r)
 }
 
@@ -178,7 +278,7 @@ func RoleDictDelete(c *gin.Context) {
 	var r gin.H
 	var err error
 	if err = c.ShouldBindJSON(&dict); err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -208,7 +308,8 @@ func RoleDictDelete(c *gin.Context) {
 	err = result.Error
 	if err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
 		r = gin.H{"message": message, "code": 20000}

@@ -3,6 +3,10 @@ package controllers
 import (
 	"strconv"
 	"time"
+
+	log "github.com/truxcoder/truxlog"
+
+	sq "github.com/Masterminds/squirrel"
 )
 
 type SearchMod struct {
@@ -10,13 +14,15 @@ type SearchMod struct {
 	PoliceCode              string   `json:"policeCode"`
 	AgeStart                int8     `json:"ageStart"`
 	AgeEnd                  int8     `json:"ageEnd"`
+	JobAgeStart             int8     `json:"JobAgeStart"`
+	JobAgeEnd               int8     `json:"JobAgeEnd"`
 	Gender                  string   `json:"gender"`
 	Nation                  []string `json:"nation"`
 	Political               []string `json:"political"`
 	FullTimeEdu             []string `json:"fullTimeEdu"`
 	FullTimeMajor           []string `json:"fullTimeMajor"`
 	PartTimeEdu             []string `json:"partTimeEdu"`
-	OrganID                 string   `json:"organId"`
+	OrganID                 []string `json:"organId"`
 	ProCert                 []string `json:"proCert"`
 	IsSecret                string   `json:"isSecret"`
 	PassExamDay             string   `json:"passExamDay"`
@@ -27,6 +33,13 @@ type SearchMod struct {
 	Punish                  []int8   `json:"punish"`
 	FamilyAbroad            string   `json:"familyAbroad"`
 	Level                   []string `json:"level"`
+	LevelId                 []string `json:"levelId"`
+	PositionId              []string `json:"positionId"`
+	IsChief                 string   `json:"isChief"`
+	IsLeader                string   `json:"isLeader"`
+	Current                 string   `json:"current"`
+	TwoPost                 string   `json:"twoPost"`
+	Status                  bool     `json:"status"`
 }
 
 func yearsAgo(year int8) time.Time {
@@ -36,7 +49,13 @@ func yearsAgo(year int8) time.Time {
 
 func makeWhere(sm *SearchMod) (string, []interface{}) {
 	var paramList []interface{}
+	var zero time.Time
 	whereStr := " 1 = 1 "
+	if sm.Status {
+		whereStr += " AND personnels.status = 1"
+	} else {
+		whereStr += " AND personnels.status = 0"
+	}
 	if sm.Name != "" {
 		whereStr += " AND personnels.name LIKE ?"
 		paramList = append(paramList, "%"+sm.Name+"%")
@@ -54,6 +73,16 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 	} else if sm.AgeEnd != 0 {
 		whereStr += " AND birthday >= ?"
 		paramList = append(paramList, yearsAgo(sm.AgeEnd))
+	}
+	if sm.JobAgeStart != 0 && sm.JobAgeEnd != 0 {
+		whereStr += " AND start_job_day is not null AND start_job_day <> ? AND start_job_day >= ? AND start_job_day <= ?"
+		paramList = append(paramList, zero, yearsAgo(sm.JobAgeEnd), yearsAgo(sm.JobAgeStart))
+	} else if sm.JobAgeStart != 0 {
+		whereStr += " AND start_job_day is not null AND start_job_day <> ? AND start_job_day <= ?"
+		paramList = append(paramList, zero, yearsAgo(sm.JobAgeStart))
+	} else if sm.JobAgeEnd != 0 {
+		whereStr += " AND start_job_day is not null AND start_job_day <> ? AND start_job_day >= ?"
+		paramList = append(paramList, zero, yearsAgo(sm.JobAgeEnd))
 	}
 	if sm.Gender != "" {
 		whereStr += " AND gender = ?"
@@ -107,8 +136,8 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		whereStr += " AND part_time_edu in ?"
 		paramList = append(paramList, sm.PartTimeEdu)
 	}
-	if sm.OrganID != "" {
-		whereStr += " AND organ_id = ?"
+	if len(sm.OrganID) > 0 {
+		whereStr += " AND organ_id in ?"
 		paramList = append(paramList, sm.OrganID)
 	}
 	if len(sm.ProCert) > 0 {
@@ -188,9 +217,61 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 			_v, _ := strconv.Atoi(v)
 			level = append(level, int64(_v))
 		}
-		var zero = time.Time{}
 		whereStr += " AND personnels.id in (?)"
 		paramList = append(paramList, db.Table("posts").Select("personnel_id").Where("level_id in ? and end_day = ?", level, zero))
+	}
+	if !isPostConditionEmpty(sm) {
+		stmt := sq.Select("personnel_id").From("posts")
+		if len(sm.LevelId) > 0 {
+			var level []int64
+			for _, v := range sm.LevelId {
+				_v, _ := strconv.Atoi(v)
+				level = append(level, int64(_v))
+			}
+			stmt = stmt.Where(sq.Eq{"level_id": level})
+		}
+		if len(sm.PositionId) > 0 {
+			var positions []int64
+			for _, v := range sm.PositionId {
+				_v, _ := strconv.Atoi(v)
+				positions = append(positions, int64(_v))
+			}
+			stmt = stmt.Where(sq.Eq{"position_id": positions})
+		}
+		if sm.IsChief != "" {
+			if sm.IsChief == "正职" {
+				stmt = stmt.Where("position_id in (select positions.id from positions where is_chief = 2)")
+			} else {
+				stmt = stmt.Where("position_id in (select positions.id from positions where is_chief = 1)")
+			}
+		}
+		if sm.IsLeader != "" {
+			if sm.IsLeader == "是" {
+				stmt = stmt.Where("position_id in (select positions.id from positions where is_leader= 2)")
+			} else {
+				stmt = stmt.Where("position_id in (select positions.id from positions where is_leader= 1)")
+			}
+		}
+		if sm.Current != "" {
+			if sm.Current == "是" {
+				stmt = stmt.Where("position_id in (select positions.id from positions where end_day = ?)", zero)
+
+			} else {
+				stmt = stmt.Where("position_id in (select positions.id from positions where end_day <> ?)", zero)
+			}
+		}
+
+		sql, args, _ := stmt.ToSql()
+		log.Successf("sql:%s\nargs:%v\n", sql, args)
+		whereStr += " AND personnels.id in (" + sql + ")"
+		paramList = append(paramList, args)
+	}
+	if sm.TwoPost != "" {
+		if sm.TwoPost == "是" {
+			whereStr += " AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from posts where position_id in (select positions.id from positions where is_leader = 2) group by personnel_id) where total > 1)"
+		} else {
+			whereStr += " AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from posts where position_id in (select positions.id from positions where is_leader = 2) group by personnel_id) where total < 2)"
+		}
 	}
 	return whereStr, paramList
 }
@@ -200,4 +281,8 @@ func getBool(str string) int {
 		return 1
 	}
 	return 0
+}
+
+func isPostConditionEmpty(sm *SearchMod) bool {
+	return len(sm.LevelId) == 0 && len(sm.PositionId) == 0 && sm.IsChief == "" && sm.IsLeader == "" && sm.Current == ""
 }

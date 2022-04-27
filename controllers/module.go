@@ -29,7 +29,7 @@ func ModuleRole(c *gin.Context) {
 	}
 	if err = c.BindJSON(&moduleList); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
@@ -43,7 +43,7 @@ func ModuleOrder(c *gin.Context) {
 	var orders []OrderStruct
 	var r gin.H
 	if err := c.ShouldBindJSON(&orders); err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 	} else {
 		for _, v := range orders {

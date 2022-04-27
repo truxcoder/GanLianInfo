@@ -1,10 +1,10 @@
 package controllers
 
 import (
+	"GanLianInfo/auth"
 	"GanLianInfo/models"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 
 	jsoniter "github.com/json-iterator/go"
 
@@ -21,10 +21,11 @@ type InfoParam struct {
 }
 
 type UserRole struct {
-	ID           int64    `json:"id,string"`
+	ID           string   `json:"id"`
+	PersonnelId  string   `json:"personnelId"`
 	IdCode       string   `json:"idCode"`
 	Name         string   `json:"name"`
-	PoliceCode   string   `json:"policeCode"`
+	Username     string   `json:"username"`
 	OrganID      string   `json:"organ"`
 	DepartmentID string   `json:"departmentId"`
 	Roles        []string `json:"roles" gorm:"-"`
@@ -49,48 +50,58 @@ func Login(c *gin.Context) {
 		log.Errorf("读取大数据中心返回数据发生错误:%v\n", err)
 	}
 	// 解析大数据中心返回的数据
-	//id := jsoniter.Get(b, "serviceResponse", "authenticationSuccess", "user").ToString()
+	id := jsoniter.Get(b, "serviceResponse", "authenticationSuccess", "user").ToString()
 	//id := jsoniter.Get(b, "serviceResponse", "authenticationSuccess", "attributes", "data", 4, "idCode").ToString()
-	var id string
-	temp := jsoniter.Get(b, "serviceResponse", "authenticationSuccess", "attributes", "data").ToString()
-	var tmp []map[string]string
-	err = jsoniter.UnmarshalFromString(temp, &tmp)
-	if err != nil {
-		log.Error(err)
-	}
+	//var id string
+	//temp := jsoniter.Get(b, "serviceResponse", "authenticationSuccess", "attributes", "data").ToString()
+	//var tmp []map[string]string
+	//err = jsoniter.UnmarshalFromString(temp, &tmp)
+	//if err != nil {
+	//	log.Error(err)
+	//}
 	// 遍历找到身份证号idCode
-	for _, v := range tmp {
-		if value, ok := v["idCode"]; ok {
-			id = value
-		}
-	}
-	log.Successf("idCode:%s\n", id)
+	//for _, v := range tmp {
+	//	if value, ok := v["idCode"]; ok {
+	//		id = value
+	//	}
+	//}
+	//log.Successf("idCode:%s\n", id)
 	if id == "" {
 		r = gin.H{"code": 20000, "isValid": false}
 		c.JSON(200, r)
 		return
 	}
-	var p struct {
-		ID int64
+	var u struct {
+		ID string
 	}
 	// 根据身份证号在数据库里找对应人员
-	result := db.Model(&models.Personnel{}).Where("id_code = ?", id).Find(&p)
+	//result := db.Model(&models.Personnel{}).Where("status = 1 AND id_code = ?", id).Find(&p)
+	//if result.RowsAffected == 0 {
+	//	r = gin.H{"code": 20000, "isValid": false}
+	//	c.JSON(200, r)
+	//	return
+	//}
+
+	result := db.Model(&models.Account{}).Where("id = ?", id).Find(&u)
 	if result.RowsAffected == 0 {
 		r = gin.H{"code": 20000, "isValid": false}
 		c.JSON(200, r)
 		return
 	}
-	// 把int64型的id转换成string返回前端
-	r = gin.H{"code": 20000, "token": strconv.FormatInt(p.ID, 10), "isValid": true}
+
+	// 把jwt生成的token返回前端
+	tokenString, _ := auth.GenToken(id)
+	data := gin.H{"id": u.ID, "token": tokenString}
+	r = gin.H{"code": 20000, "data": data, "isValid": true}
 	c.JSON(200, r)
 }
 
 func UserInfo(c *gin.Context) {
 	var id struct {
-		ID int64 `json:"id,string"`
+		ID string `json:"id"`
 	}
 	if err := c.ShouldBindJSON(&id); err != nil {
-		r := Errors.ServerError
+		r := GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -101,62 +112,20 @@ func UserInfo(c *gin.Context) {
 	c.JSON(200, r)
 }
 
-func GetUserRoles(id int64) *UserRole {
-	var p UserRole
+func GetUserRoles(id string) *UserRole {
+	var u UserRole
 	//p.IdCode = id
 	//db.Model(&models.Personnel{}).Select("id", "name", "police_code", "organ_id", "department_id").First(&p, "id=?", id)
-	db.Model(&models.Personnel{}).Select("id", "name", "id_code", "police_code", "organ_id", "department_id").Where("id = ?", id).Limit(1).Find(&p)
-	roles := enforcer.GetFilteredGroupingPolicy(0, strconv.FormatInt(id, 10))
+	db.Model(&models.Account{}).Select("id", "personnel_id", "name", "id_code", "username", "organ_id", "department_id").Where("id = ?", id).Limit(1).Find(&u)
+	roles := enforcer.GetFilteredGroupingPolicy(0, id)
 	if len(roles) == 0 {
-		p.Roles = append(p.Roles, "normal")
-		return &p
+		u.Roles = append(u.Roles, "normal")
+		return &u
 	}
 	for _, v := range roles {
-		p.Roles = append(p.Roles, v[1])
+		u.Roles = append(u.Roles, v[1])
 	}
-	return &p
-}
-
-func GetPersonOrganId(c *gin.Context) {
-	var id struct {
-		ID int64 `json:"id,string"`
-	}
-	var r gin.H
-	if c.ShouldBindJSON(&id) != nil {
-		r = Errors.ServerError
-		c.JSON(200, r)
-		return
-	}
-	var p struct {
-		OrganId string
-	}
-
-	if id.ID == 0 {
-		r = gin.H{"code": 20000, "data": ""}
-		c.JSON(200, r)
-		return
-	}
-	db.Table("personnels").Select("organ_id").Where("id = ?", id.ID).Limit(1).Find(&p)
-	r = gin.H{"code": 20000, "data": p.OrganId}
-	c.JSON(200, r)
-	return
-}
-
-// GetPersonOrgans 获取所有用户的id
-func GetPersonOrgans(c *gin.Context) {
-	var r gin.H
-	var p []struct {
-		ID      int64
-		OrganId string
-	}
-	_map := make(map[string]string)
-	db.Table("personnels").Select("id,organ_id").Find(&p)
-	for _, v := range p {
-		_map[strconv.FormatInt(v.ID, 10)] = v.OrganId
-	}
-	r = gin.H{"code": 20000, "data": _map}
-	c.JSON(200, r)
-	return
+	return &u
 }
 
 // SetPersonOrganMap 将用户id与organ_id的map写入redis

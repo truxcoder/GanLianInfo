@@ -41,7 +41,8 @@ func PoliceInfo(c *gin.Context) {
 	var count int64
 	db.Model(&models.Personnel{}).Where("id = ?", id).Count(&count)
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}

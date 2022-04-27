@@ -2,10 +2,14 @@ package controllers
 
 import (
 	"GanLianInfo/dao"
+	"bytes"
 	"context"
+	"go/ast"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -21,15 +25,27 @@ import (
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
+const (
+	accountOrder = `(case when length(d.level_code)>=3 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,3)) else null end) desc,
+(case when length(d.level_code)>=6 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,6)) else null end) desc,
+(case when length(d.level_code)>=9 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,9)) else null end) desc,
+(case when length(d.level_code)>=12 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,12)) else null end) desc,
+(case when length(d.level_code)>=15 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,15)) else null end) desc, 
+accounts.sort desc nulls first`
+)
 
-var rdb *redis.Client
-var ctx = context.Background()
-var enforcer *casbin.Enforcer
+var (
+	db        *gorm.DB
+	rdb       *redis.Client
+	ctx       = context.Background()
+	enforcer  *casbin.Enforcer
+	reConnect bool
+)
 
 // 列表页排序字典
 var orderMap = map[string]string{
 	"appraisals": "years,season",
+	"accounts":   accountOrder,
 }
 
 var detailOrderMap = map[string]string{
@@ -37,13 +53,8 @@ var detailOrderMap = map[string]string{
 	"posts":      "start_day desc",
 }
 
-var reConnect bool
-
 func init() {
 	db = dao.Connect()
-	//if rdb, err = dao.RedisConnect(); err != nil {
-	//	log.Error(err)
-	//}
 	FixDB()
 	casbinInit()
 	redisInit()
@@ -84,16 +95,17 @@ func redisInit() {
 }
 
 func casbinInit() {
-	a, _ := gormadapter.NewAdapterByDB(db)
+	var err error
+	var a *gormadapter.Adapter
+	a, err = gormadapter.NewAdapterByDB(db)
+	if err != nil {
+		log.Error(err)
+	}
 	dir, _ := os.Getwd()
 	//path := filepath.Dir(dir)
 	//log.Infof("path:%s\n", dir)
 	model := filepath.Join(dir, "model.conf")
-	var err error
 	enforcer, err = casbin.NewEnforcer(model, a)
-	if err != nil {
-		log.Error(err)
-	}
 	if err != nil {
 		log.Error(err)
 	}
@@ -142,58 +154,98 @@ func getPageData(c *gin.Context) (size int, offset int) {
 	return
 }
 
-func buildWhere(c *gin.Context) string {
+// buildWhere 根据查询参数构建where语句。
+//
+//可以查询organId，organIds，category和零值。零值查询需要前端在查询参数里传入一个key为zero，值为field_name$value_type的参数。
+//用$符号隔开。field_name:数据库字段名。value_type:数据类型，如time,int,string
+func buildWhere(c *gin.Context) (string, []interface{}) {
+	var result bytes.Buffer
+	var params []interface{}
 	organId := c.Query("organId")
+	organIds := c.QueryArray("organId[]")
 	category := c.Param("category")
-	if organId == "" && category == "" {
-		return " 1 = 1 "
+	zero := c.Query("zero")
+	result.WriteString(" 1=1 ")
+	if organId != "" {
+		result.WriteString(" and personnel_id in (select id from personnels where organ_id = ?) ")
+		params = append(params, organId)
 	}
-	if category == "" && organId != "" {
-		return "personnel_id in (select id from personnels where organ_id = '" + organId + "')"
+	if len(organIds) > 0 {
+		result.WriteString(" and personnel_id in (select id from personnels where organ_id in ?) ")
+		params = append(params, organIds)
 	}
-	if category != "" && organId == "" {
-		return "category = " + category
-	} else {
-		return "personnel_id in (select id from personnels where organ_id = '" + organId + "') and category = " + category
+	if category != "" {
+		result.WriteString(" and category = ? ")
+		params = append(params, category)
 	}
+	if zero != "" {
+		pair := strings.Split(zero, "$")
+		if len(pair) == 2 {
+			result.WriteString(" and " + pair[0] + " = ? ")
+			switch pair[1] {
+			case "time":
+				var t time.Time
+				params = append(params, t)
+			case "int":
+				params = append(params, 0)
+			case "string":
+				params = append(params, "")
+			}
+		}
+	}
+	return result.String(), params
 }
 
 func getList(c *gin.Context, table string, mo interface{}, mos interface{}, selectStr *string, joinStr *string) {
-	var where string
-	var r gin.H
-	var err error
-	var count int64                     //总记录数
+	var (
+		where  string
+		params []interface{}
+		r      gin.H
+		err    error
+		count  int64 //总记录数
+		_map   map[string]interface{}
+	)
+
 	queryMeans := c.Query("queryMeans") //请求方式，是前端分页还是后端分页
 	sort, ok := orderMap[table]
 	if !ok {
 		sort = "id desc"
 	}
-
 	if err = c.BindJSON(mo); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
-	where = buildWhere(c)
+	// 处理一个字段多值的情况。转成map，gorm会自动判断是否用"IN"查询语句
+	_map = structToSlice(mo)
+	where, params = buildWhere(c)
+
 	//后端分页情况
 	if queryMeans == "backend" {
 		size, offset := getPageData(c)
 		//先查询数据总量并返回到前端
-		if err = db.Table(table).Where(mo).Where(where).Count(&count).Error; err != nil {
-			r = Errors.ServerError
+		if err = db.Table(table).Where(mo).Where(where, params...).Where(_map).Count(&count).Error; err != nil {
+			//r = Errors.ServerError
+			r = GetError(CodeServer)
 			c.JSON(200, r)
 			return
 		}
 		if count == 0 {
-			r = Errors.NoData
+			//r = GetError(CodeNoData)
+			r = GetResponse(ResNoData)
 			c.JSON(200, r)
 			return
 		}
-		result := db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where).Limit(size).Offset(offset).Order(sort).Find(mos)
+		var result *gorm.DB
+		if *joinStr == "" {
+			result = db.Table(table).Select(*selectStr).Where(mo).Where(where, params...).Where(_map).Limit(size).Offset(offset).Order(sort).Find(mos)
+		} else {
+			result = db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where, params...).Where(_map).Limit(size).Offset(offset).Order(sort).Find(mos)
+		}
 		err = result.Error
 		if err != nil {
-			r = Errors.ServerError
+			r = GetError(CodeServer)
 		} else {
 			r = gin.H{"code": 20000, "data": mos, "count": count}
 		}
@@ -201,12 +253,18 @@ func getList(c *gin.Context, table string, mo interface{}, mos interface{}, sele
 		return
 	}
 	//前端分页情况
-	result := db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where).Order(sort).Find(mos)
+	var result *gorm.DB
+	if *joinStr == "" {
+		result = db.Table(table).Select(*selectStr).Where(mo).Where(where, params...).Where(_map).Order(sort).Find(mos)
+	} else {
+		result = db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where, params...).Where(_map).Order(sort).Find(mos)
+	}
+
 	err = result.Error
 	if err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else if result.RowsAffected == 0 {
-		r = Errors.NoData
+		r = GetResponse(ResNoData)
 	} else {
 		r = gin.H{"code": 20000, "data": mos}
 	}
@@ -226,7 +284,8 @@ func getDetail(c *gin.Context, table string, mos interface{}, selectStr *string,
 		sort = "id desc"
 	}
 	if err = c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -241,10 +300,55 @@ func getDetail(c *gin.Context, table string, mos interface{}, selectStr *string,
 	}
 	if result.Error != nil {
 		log.Error(result.Error)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
 	r = gin.H{"code": 20000, "data": mos}
 	c.JSON(200, r)
+}
+
+//如果查询结构体里有包含slice的字段，则将这些字段提取出来生成一个map返回，供gorm构建"IN"查询语句
+func structToSlice(model interface{}) map[string]interface{} {
+	var result = make(map[string]interface{})
+	T := reflect.Indirect(reflect.ValueOf(model)).Type()
+	V := reflect.Indirect(reflect.ValueOf(model))
+	for i := 0; i < T.NumField(); i++ {
+		p := T.Field(i)
+		v := V.Field(i)
+		if !p.Anonymous && ast.IsExported(p.Name) {
+			var tag string
+			var ok bool
+			if v.IsZero() {
+				continue
+			}
+
+			if tag, ok = p.Tag.Lookup("query"); !ok {
+				continue
+			}
+			if p.Type.Kind() == reflect.Slice {
+				if v.Len() == 0 {
+					continue
+				}
+				result[tag] = v.Interface()
+				if tag, ok = p.Tag.Lookup("conv"); !ok {
+					switch tag {
+					case "atoi":
+						value := v.Interface()
+						var temp []int64
+						if val, yes := value.([]string); yes {
+							for _, j := range val {
+								_v, _ := strconv.ParseInt(j, 10, 64)
+								temp = append(temp, _v)
+							}
+							result[tag] = temp
+						}
+					}
+				}
+			}
+			v.Set(reflect.New(p.Type).Elem())
+		}
+	}
+	return result
 }

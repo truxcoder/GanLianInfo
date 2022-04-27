@@ -3,6 +3,8 @@ package controllers
 import (
 	"GanLianInfo/models"
 
+	log "github.com/truxcoder/truxlog"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,9 +24,33 @@ func PositionList(c *gin.Context) {
 	//result := db.Joins("Level", db.Order("orders desc")).Find(&p)
 	err := result.Error
 	if err != nil {
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		r = gin.H{"code": 20000, "data": &p}
 	}
+	c.JSON(200, r)
+}
+
+func PositionCheck(c *gin.Context) {
+	var (
+		pos   models.Position
+		err   error
+		r     gin.H
+		count int64
+	)
+	if err = c.BindJSON(&pos); err != nil {
+		log.Error(err)
+		r = GetError(CodeBind)
+		c.JSON(200, r)
+		return
+	}
+	db.Debug().Table("positions").Where("name = ? and level_id = ?", pos.Name, pos.LevelId).Count(&count)
+	if count > 0 {
+		log.Errorf("count:%d\n", count)
+		r = GetError(CodeUnique)
+		c.JSON(200, r)
+		return
+	}
+	r = gin.H{"code": 20000, "count": &count}
 	c.JSON(200, r)
 }

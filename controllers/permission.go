@@ -32,13 +32,15 @@ func PermissionCheck(c *gin.Context) {
 	var result = make(map[string]bool)
 	if err = c.BindJSON(&rbac); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	if len(rbac.Act) < 1 {
 		log.Error(err)
-		r = Errors.NoData
+		//r = Errors.NoData
+		r = GetError(CodeNoData)
 		c.JSON(200, r)
 		return
 	}
@@ -62,13 +64,15 @@ func PermissionActCheck(c *gin.Context) {
 	var result = make(map[string]bool)
 	if err = c.BindJSON(&rbac); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	if len(rbac.Obj) < 1 {
 		log.Error(err)
-		r = Errors.NoData
+		//r = Errors.NoData
+		r = GetError(CodeNoData)
 		c.JSON(200, r)
 		return
 	}
@@ -89,7 +93,8 @@ func GetRolePermission(c *gin.Context) {
 	}
 	if err = c.BindJSON(&role); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
@@ -136,7 +141,7 @@ func PermissionList(c *gin.Context) {
 		"role_dicts.name as role_name,role_dicts.title as role_title "
 	joinStr := "left join modules on casbin_rule.v1 = modules.name " +
 		"left join role_dicts on casbin_rule.v0 = role_dicts.name"
-	db.Debug().Table("casbin_rule").Select(selectStr).Joins(joinStr).Where("casbin_rule.ptype = ?", "p").Find(&rp)
+	db.Table("casbin_rule").Select(selectStr).Joins(joinStr).Where("casbin_rule.ptype = ?", "p").Find(&rp)
 
 	r = gin.H{"code": 20000, "data": &rp}
 	c.JSON(200, r)
@@ -157,14 +162,14 @@ func PermissionManage(c *gin.Context) {
 
 	if err = c.BindJSON(&data); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	if isAdd == "true" {
 		added, err = enforcer.AddPolicies(data["add"])
 		if err != nil {
-			r = Errors.ServerError
+			r = GetError(CodeServer)
 			c.JSON(200, r)
 			return
 		}
@@ -172,7 +177,7 @@ func PermissionManage(c *gin.Context) {
 	if isDel == "true" {
 		deled, err = enforcer.RemovePolicies(data["del"])
 		if err != nil {
-			r = Errors.ServerError
+			r = GetError(CodeServer)
 			c.JSON(200, r)
 			return
 		}
@@ -207,13 +212,15 @@ func PermissionAdd(c *gin.Context) {
 
 	if err = c.BindJSON(&data); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	added, err := enforcer.AddPolicies(data)
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
@@ -237,7 +244,8 @@ func PermissionDelete(c *gin.Context) {
 	var data [][]string
 	var r gin.H
 	if err := c.BindJSON(&data); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -245,7 +253,8 @@ func PermissionDelete(c *gin.Context) {
 
 	ok, err := enforcer.RemovePolicies(data)
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}

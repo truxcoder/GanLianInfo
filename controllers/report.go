@@ -30,14 +30,30 @@ func ReportList(c *gin.Context) {
 	var pr []models.PersonReport
 	var r gin.H
 	var ids []int64
+	var userId interface{}
+	var exists bool
+	var canGlobal bool
 	var personnels []PersonSimple
 	var personMap = make(map[int64]*PersonSimple)
 	var personReportMap = make(map[int64][]int64)
-	result := db.Table("reports").Omit("reports.intro, reports.steps").Find(&mos)
+
+	// 验证是否具备全局权限
+	if userId, exists = c.Get("userId"); exists {
+		_userId, _ := userId.(string)
+		canGlobal, _ = enforcer.Enforce(_userId, "Report", "GLOBAL")
+	}
+	if canGlobal {
+		db.Table("reports").Omit("reports.intro, reports.steps").Find(&mos)
+	} else {
+		organId := c.Query("organId")
+		db.Table("reports").Where("id in (?)", db.Table("person_reports").Select("report_id").
+			Where("personnel_id in (?)", db.Table("personnels").Select("id").Where("organ_id = ?", organId))).
+			Omit("reports.intro, reports.steps").Find(&mos)
+	}
 	for _, v := range mos {
 		ids = append(ids, v.ID)
 	}
-	db.Table("person_reports").Find(&pr)
+	db.Table("person_reports").Where("report_id in ?", ids).Find(&pr)
 	selectStr := "personnels.id, personnels.name, personnels.police_code, personnels.organ_id, d.name as organ_name, d.short_name as organ_short_name"
 	joinStr := "left join departments as d on personnels.organ_id = d.id"
 	db.Table("personnels").Select(selectStr).Joins(joinStr).Where("personnels.id in (?)", db.Table("person_reports").Select("personnel_id").Where("report_id in ?", ids)).Find(&personnels)
@@ -53,12 +69,9 @@ func ReportList(c *gin.Context) {
 			mos[i].Personnels = append(mos[i].Personnels, personMap[v])
 		}
 	}
-	err := result.Error
-	if err != nil {
-		r = Errors.ServerError
-	} else {
-		r = gin.H{"code": 20000, "data": &mos}
-	}
+
+	r = gin.H{"code": 20000, "data": &mos}
+
 	c.JSON(200, r)
 }
 
@@ -72,7 +85,8 @@ func ReportOne(c *gin.Context) {
 		Steps datatype.Clob `json:"steps"`
 	}
 	if err = c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -88,7 +102,8 @@ func ReportDetail(c *gin.Context) {
 	var r gin.H
 	var id ID
 	if err = c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -113,7 +128,8 @@ func ReportSteps(c *gin.Context) {
 		Steps datatype.Clob `json:"steps"`
 	}
 	if err = c.ShouldBindJSON(&mo); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -134,7 +150,8 @@ func ReportAdd(c *gin.Context) {
 	}
 
 	if err = c.ShouldBindJSON(&model); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -165,7 +182,8 @@ func ReportUpdate(c *gin.Context) {
 		Del    []string      `json:"del"`
 	}
 	if err = c.ShouldBindJSON(&model); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -190,7 +208,8 @@ func ReportUpdate(c *gin.Context) {
 		err = result.Error
 		if err != nil {
 			log.Error(err)
-			r = Errors.ServerError
+			//r = Errors.ServerError
+			r = GetError(CodeServer)
 			c.JSON(200, r)
 			return
 		}
@@ -203,7 +222,8 @@ func PersonReportAdd(c *gin.Context) {
 	var r gin.H
 	var mos []models.PersonReport
 	if err := c.ShouldBindJSON(&mos); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerErrors
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return

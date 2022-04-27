@@ -1,6 +1,7 @@
 package router
 
 import (
+	"GanLianInfo/auth"
 	"GanLianInfo/controllers"
 	"context"
 	"log"
@@ -18,14 +19,16 @@ func genDB() gin.HandlerFunc {
 		if controllers.FixDB() {
 			c.Next()
 		} else {
-			r := controllers.Errors.DatabaseError
+			r := controllers.GetError(controllers.CodeDatabase)
 			c.JSON(200, r)
+			c.Abort()
 		}
 	}
 }
 
 func Register() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
+	authMiddleware := auth.JWTAuthMiddleware()
 	//router := gin.Default()
 	// 新建一个没有任何默认中间件的路由
 	router := gin.New()
@@ -36,44 +39,41 @@ func Register() *gin.Engine {
 	config.AllowAllOrigins = true
 	config.AddAllowHeaders("X-Token")
 	router.Use(cors.New(config))
-	router.POST("/initdb", controllers.InitDb)
-	router.POST("/fake", controllers.Fake)
-	router.POST("/add", controllers.Add)
-	router.POST("/update", controllers.Update)
-	router.POST("/delete", controllers.Delete)
-	router.POST("/dashboard", controllers.DashboardData)
-	router.POST("/upload", controllers.Upload)
+	router.POST("/add", authMiddleware, controllers.Add)
+	router.POST("/update", authMiddleware, controllers.Update)
+	router.POST("/delete", authMiddleware, controllers.Delete)
+	router.POST("/dashboard", authMiddleware, controllers.DashboardData)
+	router.POST("/upload", authMiddleware, controllers.Upload)
 	user := router.Group("user")
 	{
 		user.POST("/login", controllers.Login)
-		//user.POST("/logout", controllers.Logout)
 		user.POST("/info", controllers.UserInfo)
-		user.POST("/organ", controllers.GetPersonOrganId)
-		user.POST("/organs", controllers.GetPersonOrgans)
-		//user.POST("/userinfo", controllers.GetUserInfo)
-		//user.POST("/police", controllers.PoliceInfo)
-		//user.POST("/photo", controllers.PolicePhoto)
-
 	}
-	module := router.Group("module")
+	module := router.Group("module", authMiddleware)
 	{
 		module.POST("/list", controllers.GetModuleList)
 		module.POST("/order", controllers.ModuleOrder)
 		module.POST("/role", controllers.ModuleRole)
 	}
-	personnel := router.Group("personnel")
+	personnel := router.Group("personnel", authMiddleware)
 	{
 		personnel.POST("/list", controllers.PersonnelList)
 		personnel.POST("/detail", controllers.PersonnelDetail)
 		personnel.POST("/update", controllers.PersonnelUpdate)
-		personnel.POST("/delete", controllers.PersonnelDelete)
-		personnel.POST("/searchName", controllers.SearchPersonnelName)
-		personnel.POST("/nameList", controllers.GetPersonnelName)
+		//personnel.POST("/delete", controllers.PersonnelDelete)
+		personnel.DELETE("/:id", controllers.PersonnelDelete)
+		personnel.POST("/base_list", controllers.PersonnelBaseList)
 		personnel.POST("/name_list", controllers.PersonnelNameList)
-		personnel.POST("/dict", controllers.EduDictList)
 		personnel.POST("/resume", controllers.PersonnelResume)
 		personnel.POST("/update_id_code", controllers.UpdateIdCode)
+		personnel.POST("/organ", controllers.GetPersonOrganId)
+		personnel.POST("/organs", controllers.GetPersonOrgans)
 	}
+	custom := router.Group("custom", authMiddleware)
+	{
+		custom.POST("list", controllers.CustomList)
+	}
+	router.POST("/personnel/dict", controllers.EduDictList)
 	//organ := router.Group("organ")
 	//{
 	//	//organ.GET("list", controllers.GetOrganList)
@@ -81,7 +81,7 @@ func Register() *gin.Engine {
 	//	organ.POST("/update", controllers.OrganUpdate)
 	//	organ.POST("/delete", controllers.OrganDelete)
 	//}
-	department := router.Group("department")
+	department := router.Group("department", authMiddleware)
 	{
 		department.POST("list", controllers.DepartmentList)
 		department.POST("organ", controllers.OrganList)
@@ -89,7 +89,7 @@ func Register() *gin.Engine {
 		department.POST("update", controllers.DepartmentUpdate)
 		department.POST("position", controllers.DepartmentPosition)
 	}
-	training := router.Group("training")
+	training := router.Group("training", authMiddleware)
 	{
 		training.POST("list", controllers.TrainingList)
 		training.POST("person_list", controllers.TrainPersonList)
@@ -97,44 +97,47 @@ func Register() *gin.Engine {
 		training.POST("delete", controllers.TrainPersonDelete)
 		training.POST("detail", controllers.TrainingDetail)
 	}
-	post := router.Group("post")
+	post := router.Group("post", authMiddleware)
 	{
 		post.POST("list", controllers.PostList)
 		post.POST("/detail", controllers.PostDetail)
 	}
-	position := router.Group("position")
+	position := router.Group("position", authMiddleware)
 	{
 		position.POST("list", controllers.PositionList)
+		position.POST("check", controllers.PositionCheck)
 	}
-	level := router.Group("level")
+	level := router.Group("level", authMiddleware)
 	{
 		level.POST("list", controllers.LevelList)
 	}
-	appraisal := router.Group("appraisal")
+	appraisal := router.Group("appraisal", authMiddleware)
 	{
 		appraisal.POST("list", controllers.AppraisalList)
 		appraisal.POST("detail", controllers.AppraisalDetail)
+		appraisal.POST("batch", controllers.AppraisalBatch)
+		appraisal.POST("pre_batch", controllers.AppraisalPreBatch)
 	}
-	award := router.Group("award")
+	award := router.Group("award", authMiddleware)
 	{
 		award.POST("list", controllers.AwardList)
 		award.POST("detail", controllers.AwardDetail)
 	}
-	punish := router.Group("punish")
+	punish := router.Group("punish", authMiddleware)
 	{
 		punish.POST("list", controllers.PunishList)
 		punish.POST("detail", controllers.PunishDetail)
 	}
-	discipline := router.Group("discipline")
+	discipline := router.Group("discipline", authMiddleware)
 	{
 		discipline.POST("list", controllers.DisciplineList)
 		discipline.POST("detail", controllers.DisciplineDetail)
 	}
-	disDict := router.Group("dis_dict")
+	disDict := router.Group("dis_dict", authMiddleware)
 	{
 		disDict.POST("list", controllers.DisDictList)
 	}
-	permission := router.Group("permission")
+	permission := router.Group("permission", authMiddleware)
 	{
 		permission.POST("list", controllers.PermissionList)
 		permission.POST("manage", controllers.PermissionManage)
@@ -144,7 +147,7 @@ func Register() *gin.Engine {
 		permission.POST("add", controllers.PermissionAdd)
 		permission.POST("delete", controllers.PermissionDelete)
 	}
-	role := router.Group("role")
+	role := router.Group("role", authMiddleware)
 	{
 		role.POST("list", controllers.RoleList)
 		role.POST("add", controllers.RoleAdd)
@@ -152,22 +155,24 @@ func Register() *gin.Engine {
 		role.POST("delete", controllers.RoleDelete)
 		role.POST("permission", controllers.GetRolePermission)
 	}
-	roleDict := router.Group("role_dict")
+	roleDict := router.Group("role_dict", authMiddleware)
 	{
 		roleDict.POST("list", controllers.RoleDictList)
 		roleDict.POST("add", controllers.RoleDictAdd)
 		roleDict.POST("update", controllers.RoleDictUpdate)
 		roleDict.POST("delete", controllers.RoleDictDelete)
 	}
-	data := router.Group("data")
+	data := router.Group("data", authMiddleware)
 	{
 		data.POST("sync", controllers.DataSync)
 		data.POST("department_sync", controllers.DepartmentSync)
+		data.POST("account_sync", controllers.AccountSync)
 		data.POST("sure", controllers.DataSure)
 		data.POST("department_sure", controllers.DepartmentSure)
+		data.POST("account_sure", controllers.AccountSure)
 		data.POST("test", controllers.DataSyncText)
 	}
-	report := router.Group("report")
+	report := router.Group("report", authMiddleware)
 	{
 		report.POST("list", controllers.ReportList)
 		report.POST("one", controllers.ReportOne)
@@ -177,21 +182,26 @@ func Register() *gin.Engine {
 		report.POST("update", controllers.ReportUpdate)
 		report.POST("person_add", controllers.PersonReportAdd)
 	}
-	entryExit := router.Group("entry_exit")
+	entryExit := router.Group("entry_exit", authMiddleware)
 	{
 		entryExit.POST("list", controllers.EntryExitList)
 	}
-	affair := router.Group("affair")
+	affair := router.Group("affair", authMiddleware)
 	{
 		affair.POST("list/:category", controllers.AffairList)
 		affair.POST("detail", controllers.AffairDetail)
 		affair.POST("one", controllers.AffairOne)
 	}
-	family := router.Group("family")
+	family := router.Group("family", authMiddleware)
 	{
 		family.POST("detail", controllers.FamilyDetail)
 	}
-	talent := router.Group("talent")
+	account := router.Group("account", authMiddleware)
+	{
+		account.POST("list", controllers.AccountList)
+		account.POST("base_list", controllers.AccountBaseList)
+	}
+	talent := router.Group("talent", authMiddleware)
 	{
 		talent.POST("list/:category", controllers.TalentList)
 		talent.POST("add", controllers.TalentAdd)

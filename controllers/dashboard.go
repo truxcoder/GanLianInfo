@@ -1,6 +1,8 @@
 package controllers
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+)
 
 type OrganTotal struct {
 	OrganId string `json:"organId"`
@@ -8,6 +10,7 @@ type OrganTotal struct {
 }
 
 func DashboardData(c *gin.Context) {
+
 	var ageParams []interface{}
 	var ageList []struct {
 		OrganId               string `json:"organId"`
@@ -33,10 +36,10 @@ func DashboardData(c *gin.Context) {
 		",count(case when birthday >= ? and birthday <= ? then 1 else null end) between_thirty_forty" +
 		",count(case when birthday > ? then 1 else null end) younger_than_thirty" +
 		",count(case when birthday > ? then 1 else null end) younger_than_thirty_five" +
-		" from personnels where user_type = 1 group by organ_id"
-	politicalStr := "select organ_id, count(political) total from personnels where political = '中共党员' and user_type = 1 group by organ_id"
-	genderStr := "select organ_id, count(gender) total from personnels where gender = '男' and user_type = 1 group by organ_id"
-	totalStr := "select organ_id, count(1) total from personnels where user_type = 1 group by organ_id"
+		" from personnels where user_type = 1 and status = 1 group by organ_id"
+	politicalStr := "select organ_id, count(political) total from personnels where political = '中共党员' and user_type = 1 and status = 1 group by organ_id"
+	genderStr := "select organ_id, count(gender) total from personnels where gender = '男' and user_type = 1 and status = 1 group by organ_id"
+	totalStr := "select organ_id, count(1) total from personnels where user_type = 1 and status = 1 group by organ_id"
 	globalStr := "select count(1) total" +
 		",count(case when political = '中共党员' then 1 else null end) party_member" +
 		",count(case when gender = '男' then 1 else null end) male" +
@@ -45,7 +48,7 @@ func DashboardData(c *gin.Context) {
 		",count(case when birthday >= ? and birthday <= ? then 1 else null end) between_thirty_forty" +
 		",count(case when birthday > ? then 1 else null end) younger_than_thirty" +
 		",count(case when birthday > ? then 1 else null end) younger_than_thirty_five" +
-		" from personnels where user_type = 1"
+		" from personnels where user_type = 1 and status = 1"
 	ageParams = append(ageParams, yearsAgo(50), yearsAgo(50), yearsAgo(40), yearsAgo(40), yearsAgo(30), yearsAgo(30), yearsAgo(35))
 
 	db.Raw(ageStr, ageParams...).Scan(&ageList)

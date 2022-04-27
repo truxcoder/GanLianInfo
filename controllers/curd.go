@@ -35,6 +35,7 @@ func init() {
 	maps["affair"] = reflect.TypeOf(models.Affair{})
 	maps["family"] = reflect.TypeOf(models.Family{})
 	maps["talent"] = reflect.TypeOf(models.Talent{})
+	maps["custom"] = reflect.TypeOf(models.Custom{})
 }
 
 func Add(c *gin.Context) {
@@ -45,7 +46,8 @@ func Add(c *gin.Context) {
 	}
 	var r gin.H
 	if err = c.ShouldBindJSON(model); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 	} else {
 		db.Create(model)
@@ -62,7 +64,8 @@ func Update(c *gin.Context) {
 	}
 	var r gin.H
 	if err = c.ShouldBindJSON(model); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 	} else {
 		db.Model(model).Updates(model)
@@ -81,7 +84,8 @@ func Delete(c *gin.Context) {
 	var id IdStruct
 	var r gin.H
 	if err = c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -91,7 +95,8 @@ func Delete(c *gin.Context) {
 	err = result.Error
 	if err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
 		r = gin.H{"message": message, "code": 20000}

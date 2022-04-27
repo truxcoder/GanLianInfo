@@ -18,24 +18,12 @@ type Headcount struct {
 	Use int `json:"use"`
 }
 
-//func GetDepartmentList(c *gin.Context) {
-//	var d []models.Department
-//	var r gin.H
-//	result := db.Order("sort desc").Find(&d)
-//	err := result.Error
-//	if err != nil {
-//		r = Errors.ServerError
-//	} else {
-//		r = gin.H{"code": 20000, "data": &d}
-//	}
-//	c.JSON(200, r)
-//}
-
 func DepartmentList(c *gin.Context) {
 	var r gin.H
 	d, err := getDepartmentSlice()
 	if err != nil {
-		r = Errors.DatabaseError
+		//r = Errors.DatabaseError
+		r = GetError(CodeDatabase)
 		c.JSON(200, r)
 		return
 	}
@@ -49,7 +37,8 @@ func OrganList(c *gin.Context) {
 	result := db.Model(&models.Department{}).Where("dept_type = ?", 1).Order("sort asc").Find(&o)
 	err := result.Error
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		r = gin.H{"code": 20000, "data": &o}
 	}
@@ -64,16 +53,18 @@ func HeadcountList(c *gin.Context) {
 		total int64
 	)
 
-	selectStr := "departments.id,departments.name,departments.short_name,departments.sort,departments.headcount,(select count (1) from personnels where personnels.organ_id = departments.id) use"
+	selectStr := "departments.id,departments.name,departments.short_name,departments.sort,departments.headcount,(select count (1) from personnels where personnels.organ_id = departments.id and personnels.status = 1) use"
 	result := db.Table("departments").Select(selectStr).Where("dept_type = ?", 1).Order("sort desc,level_code asc").Find(&h)
 	if err = db.Model(&models.Personnel{}).Count(&total).Error; err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
 	err = result.Error
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
@@ -101,7 +92,8 @@ func DepartmentPosition(c *gin.Context) {
 	result := db.Table("departments").Select(selectStr).Where("dept_type = ?", 1).Order("sort desc,level_code asc").Find(&d)
 	err = result.Error
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
@@ -126,7 +118,8 @@ func DepartmentUpdate(c *gin.Context) {
 	var r gin.H
 	field := c.Query("field")
 	if c.ShouldBindJSON(&h) != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}

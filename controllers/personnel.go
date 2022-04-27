@@ -28,7 +28,6 @@ type PerName struct {
 }
 
 func PersonnelList(c *gin.Context) {
-	queryMeans := c.Query("queryMeans") //请求方式，是前端分页还是后端分页
 	currenPage := c.Query("currentPage")
 	pageSize := c.Query("pageSize")
 	var (
@@ -56,42 +55,36 @@ personnels.sort desc nulls first`
 
 	if err = c.BindJSON(&sm); err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	whereStr, paramList = makeWhere(&sm)
 
-	//后端分页情况
-	if queryMeans == "backend" {
-		page, _ := strconv.Atoi(currenPage)
-		size, _ := strconv.Atoi(pageSize)
-		offset := (page - 1) * size
-		//先查询数据总量并返回到前端
-		err = db.Model(&models.Personnel{}).Where(whereStr, paramList...).Count(&count).Error
-		if err != nil {
-			r = Errors.ServerError
-		} else if count != 0 {
-			result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Limit(size).Offset(offset).Find(&pd)
-			if result.Error != nil {
-				r = Errors.ServerError
-			} else {
-				r = gin.H{"code": 20000, "data": &pd, "count": count}
-			}
-		} else {
-			r = Errors.NoData
-		}
-	} else { //前端分页情况
-		result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Find(&pd)
-		err = result.Error
-		if err != nil {
-			r = Errors.ServerError
-		} else if result.RowsAffected == 0 {
-			r = Errors.NoData
-		} else {
-			r = gin.H{"code": 20000, "data": &pd, "count": result.RowsAffected}
-		}
+	page, _ := strconv.Atoi(currenPage)
+	size, _ := strconv.Atoi(pageSize)
+	offset := (page - 1) * size
+	//先查询数据总量并返回到前端
+	err = db.Model(&models.Personnel{}).Where(whereStr, paramList...).Count(&count).Error
+	if err != nil {
+		r = GetError(CodeServer)
+		c.JSON(200, r)
+		return
 	}
+	if count == 0 {
+		r = GetResponse(ResNoData)
+		c.JSON(200, r)
+		return
+	}
+	result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Limit(size).Offset(offset).Find(&pd)
+
+	if result.Error != nil {
+		r = GetError(CodeServer)
+		c.JSON(200, r)
+		return
+	}
+	r = gin.H{"code": 20000, "data": &pd, "count": count}
 	c.JSON(200, r)
 }
 
@@ -109,7 +102,8 @@ func PersonnelDetail(c *gin.Context) {
 		"left join resumes on resumes.personnel_id = personnels.id"
 	var id ID
 	if err := c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
@@ -123,33 +117,36 @@ func PersonnelDetail(c *gin.Context) {
 	c.JSON(200, r)
 }
 
-func GetPersonnelName(c *gin.Context) {
+// PersonnelBaseList 基本信息列表，用于人员选择等
+func PersonnelBaseList(c *gin.Context) {
 	var p []PerDept
 	var err error
 	var r gin.H
 	var result *gorm.DB
-	var organ struct {
-		PersonnelId int64  `json:"personnelId,string"`
-		OrganId     string `json:"organId"`
+	var mo struct {
+		AccountId string `json:"accountId"`
+		OrganId   string `json:"organId"`
 	}
-	if c.ShouldBindJSON(&organ) != nil {
-		r = Errors.ServerError
+	if c.ShouldBindJSON(&mo) != nil {
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
-	canGlobal, _ := enforcer.Enforce(strconv.FormatInt(organ.PersonnelId, 10), "Personnel", "GLOBAL")
+	canGlobal, _ := enforcer.Enforce(mo.AccountId, "Personnel", "GLOBAL")
 	selectStr := "personnels.*, departments.name as organ_name,departments.short_name as organ_short_name"
 	joinStr := "left join departments on personnels.organ_id = departments.id"
 	if canGlobal {
-		result = db.Table("personnels").Select(selectStr).Joins(joinStr).Find(&p)
+		result = db.Table("personnels").Select(selectStr).Joins(joinStr).Where("status = 1").Find(&p)
 	} else {
-		result = db.Table("personnels").Select(selectStr).Joins(joinStr).Where("organ_id = ?", organ.OrganId).Find(&p)
+		result = db.Table("personnels").Select(selectStr).Joins(joinStr).Where("status = 1 AND organ_id = ?", mo.OrganId).Find(&p)
 	}
 	err = result.Error
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else if result.RowsAffected == 0 {
-		r = Errors.NoData
+		//r = Errors.NoData
+		r = GetError(CodeNoData)
 	} else {
 		r = gin.H{"code": 20000, "data": &p}
 	}
@@ -162,54 +159,34 @@ func PersonnelNameList(c *gin.Context) {
 	var err error
 	var r gin.H
 	var result *gorm.DB
-	var organ struct {
-		PersonnelId int64  `json:"personnelId,string"`
-		OrganId     string `json:"organId"`
+	var mo struct {
+		AccountId string `json:"accountId"`
+		OrganId   string `json:"organId"`
 	}
-	if c.ShouldBindJSON(&organ) != nil {
-		r = Errors.ServerError
+	if c.ShouldBindJSON(&mo) != nil {
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
-	canGlobal, _ := enforcer.Enforce(strconv.FormatInt(organ.PersonnelId, 10), "Personnel", "GLOBAL")
+	canGlobal, _ := enforcer.Enforce(mo.AccountId, "Personnel", "GLOBAL")
 	selectStr := "id, name, police_code, department_id"
 	if canGlobal {
-		result = db.Table("personnels").Select(selectStr).Find(&p)
+		result = db.Table("personnels").Select(selectStr).Where("status = 1").Find(&p)
 	} else {
-		result = db.Table("personnels").Select(selectStr).Where("organ_id = ?", organ.OrganId).Find(&p)
+		result = db.Table("personnels").Select(selectStr).Where("status = 1 AND organ_id = ?", &mo.OrganId).Find(&p)
 	}
 	err = result.Error
 	if err != nil {
-		r = Errors.ServerError
-	} else if result.RowsAffected == 0 {
-		r = Errors.NoData
-	} else {
-		r = gin.H{"code": 20000, "data": &p}
-	}
-	c.JSON(200, r)
-}
-
-func SearchPersonnelName(c *gin.Context) {
-	var p []models.Personnel
-	var name struct {
-		Name string `json:"name"`
-	}
-	var err error
-	var r gin.H
-	var result *gorm.DB
-	if err = c.BindJSON(&name); err != nil {
-		log.Error(err)
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
-	result = db.Select("id", "name", "police_code").Where("name LIKE ?", name.Name+"%").Find(&p)
-	err = result.Error
-	if err != nil {
-		r = Errors.ServerError
-	} else {
-		r = gin.H{"code": 20000, "data": &p}
+	if result.RowsAffected == 0 {
+		r = GetError(CodeNoData)
+		c.JSON(200, r)
+		return
 	}
+	r = gin.H{"code": 20000, "data": &p}
 	c.JSON(200, r)
 }
 
@@ -217,7 +194,8 @@ func PersonnelUpdate(c *gin.Context) {
 	var p models.Personnel
 	var r gin.H
 	if c.ShouldBindJSON(&p) != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 	} else {
 		p.Birthday = utils.GetBirthdayFromIdCode(p.IdCode)
 		db.Model(&p).Updates(&p)
@@ -227,34 +205,59 @@ func PersonnelUpdate(c *gin.Context) {
 }
 
 func PersonnelDelete(c *gin.Context) {
-	var err error
-	var id IdStruct
-	var r gin.H
-	if err = c.ShouldBindJSON(&id); err != nil {
-		r = Errors.ServerError
-		log.Error(err)
+	var (
+		err error
+		r   gin.H
+		id  int64
+	)
+
+	if id, err = strconv.ParseInt(c.Param("id"), 10, 64); err != nil {
+		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
-	result := db.Delete(models.Personnel{}, &id.Id)
+	result := db.Delete(models.Personnel{}, id)
 	err = result.Error
 	if err != nil {
 		log.Error(err)
-		r = Errors.ServerError
+		r = GetError(CodeServer)
 	} else {
 		message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
 		r = gin.H{"message": message, "code": 20000}
 	}
 	c.JSON(200, r)
 	return
-
 }
+
+//func PersonnelDelete(c *gin.Context) {
+//	var err error
+//	var id IdStruct
+//	var r gin.H
+//	if err = c.ShouldBindJSON(&id); err != nil {
+//		r = GetError(CodeBind)
+//		log.Error(err)
+//		c.JSON(200, r)
+//		return
+//	}
+//	result := db.Delete(models.Personnel{}, &id.Id)
+//	err = result.Error
+//	if err != nil {
+//		log.Error(err)
+//		r = GetError(CodeServer)
+//	} else {
+//		message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
+//		r = gin.H{"message": message, "code": 20000}
+//	}
+//	c.JSON(200, r)
+//	return
+//}
 
 func PersonnelResume(c *gin.Context) {
 	var resume, res models.Resume
 	var r gin.H
 	if c.ShouldBindJSON(&resume) != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
@@ -276,14 +279,16 @@ func UpdateIdCode(c *gin.Context) {
 		IdCode string `json:"idCode"`
 	}
 	if err := c.ShouldBindJSON(&p); err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeBind)
 		log.Error(err)
 		c.JSON(200, r)
 		return
 	}
 	result := db.Table("personnels").Where("id = ?", p.ID).Update("id_code", p.IdCode)
 	if result.Error != nil || result.RowsAffected == 0 {
-		r = Errors.Update
+		//r = Errors.Update
+		r = GetError(CodeUpdate)
 		log.Error(result.Error)
 		c.JSON(200, r)
 		return
@@ -299,11 +304,55 @@ func EduDictList(c *gin.Context) {
 	result := db.Order("sort asc").Find(&dicts)
 	err := result.Error
 	if err != nil {
-		r = Errors.ServerError
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
 		log.Error(err)
 	} else {
 		r = gin.H{"code": 20000, "data": &dicts}
 	}
 	//time.Sleep(4 * time.Second)
 	c.JSON(200, r)
+}
+
+// GetPersonOrganId 获取人员单位ID，用在人员detail页面权限认证
+func GetPersonOrganId(c *gin.Context) {
+	var id struct {
+		ID int64 `json:"id,string"`
+	}
+	var r gin.H
+	if c.ShouldBindJSON(&id) != nil {
+		r = GetError(CodeBind)
+		c.JSON(200, r)
+		return
+	}
+	var u struct {
+		OrganId string
+	}
+
+	if id.ID == 0 {
+		r = gin.H{"code": 20000, "data": ""}
+		c.JSON(200, r)
+		return
+	}
+	db.Table("personnels").Select("organ_id").Where("id = ?", id.ID).Limit(1).Find(&u)
+	r = gin.H{"code": 20000, "data": u.OrganId}
+	c.JSON(200, r)
+	return
+}
+
+// GetPersonOrgans 获取所有人员的id
+func GetPersonOrgans(c *gin.Context) {
+	var r gin.H
+	var u []struct {
+		ID      int64 `json:"id,string"`
+		OrganId string
+	}
+	_map := make(map[string]string)
+	db.Table("personnels").Select("id, organ_id").Find(&u)
+	for _, v := range u {
+		_map[strconv.FormatInt(v.ID, 10)] = v.OrganId
+	}
+	r = gin.H{"code": 20000, "data": _map}
+	c.JSON(200, r)
+	return
 }
