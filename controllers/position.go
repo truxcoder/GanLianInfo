@@ -44,7 +44,7 @@ func PositionCheck(c *gin.Context) {
 		c.JSON(200, r)
 		return
 	}
-	db.Debug().Table("positions").Where("name = ? and level_id = ?", pos.Name, pos.LevelId).Count(&count)
+	db.Table("positions").Where("name = ? and level_id = ?", pos.Name, pos.LevelId).Count(&count)
 	if count > 0 {
 		log.Errorf("count:%d\n", count)
 		r = GetError(CodeUnique)

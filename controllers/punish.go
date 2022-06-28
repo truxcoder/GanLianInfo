@@ -16,7 +16,10 @@ type Punishes struct {
 
 func PunishList(c *gin.Context) {
 	var mos []Punishes
-	var mo Punishes
+	var mo struct {
+		models.Punish
+		Intercept string `json:"intercept" gorm:"-" sql:""`
+	}
 	selectStr := "punishes.*,per.name as personnel_name, per.police_code as police_code," +
 		"departments.name as organ_name, departments.short_name as organ_short_name "
 	joinStr := "left join personnels as per on punishes.personnel_id = per.id " +

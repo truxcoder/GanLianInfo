@@ -36,24 +36,62 @@ func init() {
 	maps["family"] = reflect.TypeOf(models.Family{})
 	maps["talent"] = reflect.TypeOf(models.Talent{})
 	maps["custom"] = reflect.TypeOf(models.Custom{})
+	maps["review"] = reflect.TypeOf(models.Review{})
+	maps["feedback"] = reflect.TypeOf(models.Feedback{})
+	maps["appointment"] = reflect.TypeOf(models.Appointment{})
 }
 
 func Add(c *gin.Context) {
+	var (
+		ok bool
+		r  gin.H
+	)
+
 	model, err := getInstance(c)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	var r gin.H
 	if err = c.ShouldBindJSON(model); err != nil {
-		//r = Errors.ServerError
 		r = GetError(CodeBind)
 		log.Error(err)
-	} else {
-		db.Create(model)
-		r = gin.H{"message": "添加成功！", "code": 20000}
+		c.JSON(200, r)
+		return
 	}
+
+	if ok, err = validate(model); err != nil {
+		r = GetError(CodeValidate)
+		log.Error(err)
+		c.JSON(200, r)
+		return
+	}
+
+	if !ok {
+		r = GetError(CodeExist)
+		c.JSON(200, r)
+		return
+	}
+
+	db.Create(model)
+	r = gin.H{"message": "添加成功！", "code": 20000}
+
 	c.JSON(200, r)
+}
+
+// 添加前数据验证
+func validate(model interface{}) (bool, error) {
+	var count int64
+	if reflect.TypeOf(model) == reflect.TypeOf(&models.Appraisal{}) {
+		if mo, ok := model.(*models.Appraisal); ok {
+			if err := db.Model(model).Where("personnel_id = ? AND years = ? AND season = ?", mo.PersonnelId, mo.Years, mo.Season).Count(&count).Error; err != nil {
+				return false, err
+			}
+			if count > 0 {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
 }
 
 func Update(c *gin.Context) {
@@ -103,6 +141,25 @@ func Delete(c *gin.Context) {
 	}
 	c.JSON(200, r)
 	return
+}
+
+func PreEdit(c *gin.Context) {
+	var (
+		r   gin.H
+		mo  models.Review
+		err error
+	)
+
+	if err = c.ShouldBindJSON(&mo); err != nil {
+		r = GetError(CodeBind)
+		log.Error(err)
+		c.JSON(200, r)
+		return
+	}
+
+	db.Create(&mo)
+	r = gin.H{"message": "提交成功！请等待审核", "code": 20000}
+	c.JSON(200, r)
 }
 
 // getInstance 获取模型实例，返回实例指针

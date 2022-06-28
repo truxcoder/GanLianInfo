@@ -85,6 +85,7 @@ func DepartmentPosition(c *gin.Context) {
 			Fk      int64  `json:"fk"`
 			Zc      int64  `json:"zc"`
 			Fc      int64  `json:"fc"`
+			Ft      int64  `json:"ft"`
 		}
 	)
 
@@ -100,7 +101,8 @@ func DepartmentPosition(c *gin.Context) {
 	selectStr = "personnels.organ_id, count(case when levels.name = '正科级' and positions.is_leader = 2 and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) zk, " +
 		"count(case when levels.name = '副科级' and positions.is_leader = 2 and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) fk, " +
 		"count(case when levels.name = '正处级' and positions.is_leader = 2 and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) zc, " +
-		"count(case when levels.name = '副处级' and positions.is_leader = 2 and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) fc"
+		"count(case when levels.name = '副处级' and positions.is_leader = 2 and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) fc, " +
+		"count(case when levels.name = '副厅级' and positions.is_leader = 2 and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) ft"
 	JoinStr := "left join levels on posts.level_id = levels.id " +
 		"left join positions on posts.position_id = positions.id " +
 		"left join personnels on posts.personnel_id = personnels.id"

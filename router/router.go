@@ -44,6 +44,7 @@ func Register() *gin.Engine {
 	router.POST("/delete", authMiddleware, controllers.Delete)
 	router.POST("/dashboard", authMiddleware, controllers.DashboardData)
 	router.POST("/upload", authMiddleware, controllers.Upload)
+	router.POST("/pre", authMiddleware, controllers.PreEdit)
 	user := router.Group("user")
 	{
 		user.POST("/login", controllers.Login)
@@ -65,7 +66,10 @@ func Register() *gin.Engine {
 		personnel.POST("/base_list", controllers.PersonnelBaseList)
 		personnel.POST("/name_list", controllers.PersonnelNameList)
 		personnel.POST("/resume", controllers.PersonnelResume)
+		personnel.POST("/update_edu", controllers.PersonnelUpdateEdu)
 		personnel.POST("/update_id_code", controllers.UpdateIdCode)
+		personnel.POST("/update_birthday", controllers.UpdateBirthday)
+		personnel.POST("/update_status", controllers.PersonnelUpdateStatus)
 		personnel.POST("/organ", controllers.GetPersonOrganId)
 		personnel.POST("/organs", controllers.GetPersonOrgans)
 	}
@@ -107,6 +111,11 @@ func Register() *gin.Engine {
 		position.POST("list", controllers.PositionList)
 		position.POST("check", controllers.PositionCheck)
 	}
+	appointment := router.Group("appointment", authMiddleware)
+	{
+		appointment.POST("list", controllers.AppointmentList)
+		appointment.POST("table", controllers.AppointmentTableDetail)
+	}
 	level := router.Group("level", authMiddleware)
 	{
 		level.POST("list", controllers.LevelList)
@@ -122,6 +131,8 @@ func Register() *gin.Engine {
 	{
 		award.POST("list", controllers.AwardList)
 		award.POST("detail", controllers.AwardDetail)
+		award.POST("batch", controllers.AwardBatch)
+		award.POST("pre_batch", controllers.AwardPreBatch)
 	}
 	punish := router.Group("punish", authMiddleware)
 	{
@@ -201,10 +212,19 @@ func Register() *gin.Engine {
 		account.POST("list", controllers.AccountList)
 		account.POST("base_list", controllers.AccountBaseList)
 	}
+	review := router.Group("review", authMiddleware)
+	{
+		review.POST("list", controllers.ReviewList)
+		review.POST("feedback", controllers.FeedbackList)
+		review.POST("pass", controllers.ReviewPass)
+	}
 	talent := router.Group("talent", authMiddleware)
 	{
 		talent.POST("list/:category", controllers.TalentList)
 		talent.POST("add", controllers.TalentAdd)
+		talent.POST("pick_list", controllers.TalentPickList)
+		talent.POST("pick_add", controllers.TalentPickAdd)
+		talent.POST("detail_list", controllers.TalentDetailList)
 	}
 	return router
 }

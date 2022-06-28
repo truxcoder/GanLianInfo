@@ -20,8 +20,11 @@ type SearchMod struct {
 	Nation                  []string `json:"nation"`
 	Political               []string `json:"political"`
 	FullTimeEdu             []string `json:"fullTimeEdu"`
+	FullTimeDegree          []string `json:"fullTimeDegree"`
 	FullTimeMajor           []string `json:"fullTimeMajor"`
-	PartTimeEdu             []string `json:"partTimeEdu"`
+	FinalEdu                []string `json:"finalEdu"`
+	FinalDegree             []string `json:"finalDegree"`
+	FinalMajor              []string `json:"finalMajor"`
 	OrganID                 []string `json:"organId"`
 	ProCert                 []string `json:"proCert"`
 	IsSecret                string   `json:"isSecret"`
@@ -38,8 +41,9 @@ type SearchMod struct {
 	IsChief                 string   `json:"isChief"`
 	IsLeader                string   `json:"isLeader"`
 	Current                 string   `json:"current"`
-	TwoPost                 string   `json:"twoPost"`
+	TwoPost                 []string `json:"twoPost"`
 	Status                  bool     `json:"status"`
+	Extra                   string   `json:"extra"`
 }
 
 func yearsAgo(year int8) time.Time {
@@ -47,14 +51,68 @@ func yearsAgo(year int8) time.Time {
 	return now.AddDate(int(0-year), 0, 0)
 }
 
+func monthAgo(month int16) time.Time {
+	now := time.Now()
+	return now.AddDate(0, int(0-month), 0)
+}
+
 func makeWhere(sm *SearchMod) (string, []interface{}) {
 	var paramList []interface{}
 	var zero time.Time
 	whereStr := " 1 = 1 "
+
 	if sm.Status {
 		whereStr += " AND personnels.status = 1"
 	} else {
 		whereStr += " AND personnels.status = 0"
+	}
+	if len(sm.OrganID) > 0 {
+		whereStr += " AND organ_id in ?"
+		paramList = append(paramList, sm.OrganID)
+	}
+	if sm.Extra != "" {
+		switch sm.Extra {
+		case "fc":
+			var thisYear = time.Now().Year()
+			var threeYears = []string{strconv.Itoa(thisYear - 1), strconv.Itoa(thisYear - 2), strconv.Itoa(thisYear - 3)}
+			whereStr += " AND start_job_day is not null AND start_job_day <> ? AND start_job_day <= ?" +
+				" AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from posts where position_id in (select positions.id from positions where is_leader = 2) group by personnel_id) where total > 1)" +
+				" AND personnels.id in (select personnel_id from posts where posts.level_id = (select id from levels where levels.name = '正科级') and posts.start_day <= ? and posts.position_id in (select id from positions where is_leader = 2))" +
+				" AND personnels.id not in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders < 4) and posts.position_id in (select id from positions where is_leader = 2))" +
+				" AND final_edu in (select name from edu_dicts where sort > 20)" +
+				" AND pass_exam_day is not null AND pass_exam_day >= ?" +
+				" AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from appraisals where appraisals.season = 100 and appraisals.years in ? and appraisals.conclusion not in ('不称职','不确定等次') group by personnel_id) where total = 3)" +
+				" AND political = '中共党员'" +
+				" AND join_party_day <= ?"
+			paramList = append(paramList, zero, yearsAgo(5), yearsAgo(3), yearsAgo(3), threeYears, yearsAgo(3))
+		case "zc":
+			var thisYear = time.Now().Year()
+			var threeYears = []string{strconv.Itoa(thisYear - 1), strconv.Itoa(thisYear - 2), strconv.Itoa(thisYear - 3)}
+			whereStr += " AND start_job_day is not null AND start_job_day <> ? AND start_job_day <= ?" +
+				" AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from posts where position_id in (select positions.id from positions where is_leader = 2) group by personnel_id) where total > 1)" +
+				" AND personnels.id in (select personnel_id from posts where posts.level_id = (select id from levels where levels.name = '副处级') and posts.start_day <= ? and posts.position_id in (select id from positions where is_leader = 2))" +
+				" AND personnels.id not in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders < 3) and posts.position_id in (select id from positions where is_leader = 2))" +
+				" AND final_edu in (select name from edu_dicts where sort > 20)" +
+				" AND pass_exam_day is not null AND pass_exam_day >= ?" +
+				" AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from appraisals where appraisals.season = 100 and appraisals.years in ? and appraisals.conclusion not in ('不称职','不确定等次') group by personnel_id) where total = 3)" +
+				" AND political = '中共党员'" +
+				" AND join_party_day <= ?"
+			paramList = append(paramList, zero, yearsAgo(5), yearsAgo(2), yearsAgo(3), threeYears, yearsAgo(3))
+		case "willUpInSixMonth":
+			// 此处查询逻辑很绕。对于任职信息的判断有两种情况符合条件。
+			// 1，end_day为空，start_day小于指定日期。
+			// 2，end_day不为空，start_day小于指定日期。同时在posts表里能找到这样一条记录，
+			// 它的position_id等于当前记录的position_id，它的personnel_id等于当前记录的personnel_id，它的end_day为空。
+			whereStr += " AND personnels.id in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders > 3) and posts.position_id in (select id from positions where is_leader = 1 and positions.name <> '一级警长') and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
+			paramList = append(paramList, zero, monthAgo(18), zero, monthAgo(18), zero)
+		case "willUpInThreeMonth":
+			whereStr += " AND personnels.id in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders > 3) and posts.position_id in (select id from positions where is_leader = 1 and positions.name <> '一级警长') and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
+			paramList = append(paramList, zero, monthAgo(21), zero, monthAgo(21), zero)
+		case "willRetireInTwoYear":
+			whereStr += " AND ((personnels.birthday <= ? and personnels.gender = '男') or (personnels.birthday <= ? and personnels.gender = '女'))"
+			paramList = append(paramList, yearsAgo(58), yearsAgo(53))
+		}
+		return whereStr, paramList
 	}
 	if sm.Name != "" {
 		whereStr += " AND personnels.name LIKE ?"
@@ -118,6 +176,10 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		whereStr += " AND full_time_edu in ?"
 		paramList = append(paramList, sm.FullTimeEdu)
 	}
+	if len(sm.FullTimeDegree) > 0 {
+		whereStr += " AND full_time_degree in ?"
+		paramList = append(paramList, sm.FullTimeDegree)
+	}
 	if len(sm.FullTimeMajor) > 0 {
 		//whereStr += " AND full_time_major in ?"
 		//paramList = append(paramList, sm.FullTimeMajor)
@@ -132,14 +194,27 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		}
 		whereStr += ")"
 	}
-	if len(sm.PartTimeEdu) > 0 {
-		whereStr += " AND part_time_edu in ?"
-		paramList = append(paramList, sm.PartTimeEdu)
+	if len(sm.FinalEdu) > 0 {
+		whereStr += " AND final_edu in ?"
+		paramList = append(paramList, sm.FinalEdu)
 	}
-	if len(sm.OrganID) > 0 {
-		whereStr += " AND organ_id in ?"
-		paramList = append(paramList, sm.OrganID)
+	if len(sm.FinalDegree) > 0 {
+		whereStr += " AND final_degree in ?"
+		paramList = append(paramList, sm.FinalDegree)
 	}
+	if len(sm.FinalMajor) > 0 {
+		for k, v := range sm.FullTimeMajor {
+			if k == 0 {
+				whereStr += " AND (final_major LIKE ?"
+				paramList = append(paramList, "%"+v+"%")
+			} else {
+				whereStr += " OR final_major LIKE ?"
+				paramList = append(paramList, "%"+v+"%")
+			}
+		}
+		whereStr += ")"
+	}
+
 	if len(sm.ProCert) > 0 {
 		//whereStr += " AND pro_cert in ?"
 		//paramList = append(paramList, sm.ProCert)
@@ -217,8 +292,10 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 			_v, _ := strconv.Atoi(v)
 			level = append(level, int64(_v))
 		}
-		whereStr += " AND personnels.id in (?)"
-		paramList = append(paramList, db.Table("posts").Select("personnel_id").Where("level_id in ? and end_day = ?", level, zero))
+		//whereStr += " AND personnels.id in (?)"
+		whereStr += " AND personnels.id in (select personnel_id from posts where level_id in ? and end_day = ? and posts.position_id in (select id from positions where is_leader = 2))"
+		//paramList = append(paramList, db.Table("posts").Select("personnel_id").Where("level_id in ? and end_day = ?", level, zero))
+		paramList = append(paramList, level, zero)
 	}
 	if !isPostConditionEmpty(sm) {
 		stmt := sq.Select("personnel_id").From("posts")
@@ -266,11 +343,17 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		whereStr += " AND personnels.id in (" + sql + ")"
 		paramList = append(paramList, args)
 	}
-	if sm.TwoPost != "" {
-		if sm.TwoPost == "是" {
+	if len(sm.TwoPost) > 0 {
+		var leaderList []int64
+		if sm.TwoPost[0] == "不限" {
 			whereStr += " AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from posts where position_id in (select positions.id from positions where is_leader = 2) group by personnel_id) where total > 1)"
 		} else {
-			whereStr += " AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from posts where position_id in (select positions.id from positions where is_leader = 2) group by personnel_id) where total < 2)"
+			for _, v := range sm.TwoPost {
+				_v, _ := strconv.Atoi(v)
+				leaderList = append(leaderList, int64(_v))
+			}
+			whereStr += " AND personnels.id in (select personnel_id from (select personnel_id, count(1) total from posts where position_id in (select positions.id from positions where is_leader = 2 and positions.level_id in ?) group by personnel_id) where total > 1)"
+			paramList = append(paramList, leaderList)
 		}
 	}
 	return whereStr, paramList

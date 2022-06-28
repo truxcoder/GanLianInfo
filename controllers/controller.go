@@ -204,6 +204,7 @@ func getList(c *gin.Context, table string, mo interface{}, mos interface{}, sele
 		err    error
 		count  int64 //总记录数
 		_map   map[string]interface{}
+		_sql   string
 	)
 
 	queryMeans := c.Query("queryMeans") //请求方式，是前端分页还是后端分页
@@ -219,13 +220,14 @@ func getList(c *gin.Context, table string, mo interface{}, mos interface{}, sele
 	}
 	// 处理一个字段多值的情况。转成map，gorm会自动判断是否用"IN"查询语句
 	_map = structToSlice(mo)
+	_sql = intercept(mo)
 	where, params = buildWhere(c)
 
 	//后端分页情况
 	if queryMeans == "backend" {
 		size, offset := getPageData(c)
 		//先查询数据总量并返回到前端
-		if err = db.Table(table).Where(mo).Where(where, params...).Where(_map).Count(&count).Error; err != nil {
+		if err = db.Table(table).Where(mo).Where(where, params...).Where(_map).Where(_sql).Count(&count).Error; err != nil {
 			//r = Errors.ServerError
 			r = GetError(CodeServer)
 			c.JSON(200, r)
@@ -239,9 +241,9 @@ func getList(c *gin.Context, table string, mo interface{}, mos interface{}, sele
 		}
 		var result *gorm.DB
 		if *joinStr == "" {
-			result = db.Table(table).Select(*selectStr).Where(mo).Where(where, params...).Where(_map).Limit(size).Offset(offset).Order(sort).Find(mos)
+			result = db.Table(table).Select(*selectStr).Where(mo).Where(where, params...).Where(_map).Where(_sql).Limit(size).Offset(offset).Order(sort).Find(mos)
 		} else {
-			result = db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where, params...).Where(_map).Limit(size).Offset(offset).Order(sort).Find(mos)
+			result = db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where, params...).Where(_map).Where(_sql).Limit(size).Offset(offset).Order(sort).Find(mos)
 		}
 		err = result.Error
 		if err != nil {
@@ -255,9 +257,9 @@ func getList(c *gin.Context, table string, mo interface{}, mos interface{}, sele
 	//前端分页情况
 	var result *gorm.DB
 	if *joinStr == "" {
-		result = db.Table(table).Select(*selectStr).Where(mo).Where(where, params...).Where(_map).Order(sort).Find(mos)
+		result = db.Table(table).Select(*selectStr).Where(mo).Where(where, params...).Where(_map).Where(_sql).Order(sort).Find(mos)
 	} else {
-		result = db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where, params...).Where(_map).Order(sort).Find(mos)
+		result = db.Table(table).Select(*selectStr).Joins(*joinStr).Where(mo).Where(where, params...).Where(_map).Where(_sql).Order(sort).Find(mos)
 	}
 
 	err = result.Error
@@ -347,6 +349,36 @@ func structToSlice(model interface{}) map[string]interface{} {
 					}
 				}
 			}
+			v.Set(reflect.New(p.Type).Elem())
+		}
+	}
+	return result
+}
+
+func intercept(model interface{}) string {
+	var result = ""
+	var value string
+	T := reflect.Indirect(reflect.ValueOf(model)).Type()
+	V := reflect.Indirect(reflect.ValueOf(model))
+	for i := 0; i < T.NumField(); i++ {
+		p := T.Field(i)
+		v := V.Field(i)
+		if !p.Anonymous && ast.IsExported(p.Name) {
+			var ok bool
+			if v.IsZero() {
+				continue
+			}
+			if _, ok = p.Tag.Lookup("sql"); !ok {
+				continue
+			}
+			if value, ok = v.Interface().(string); !ok {
+				log.Error("error: 标记tag为sql的字段必须为字符串")
+				continue
+			}
+			if result != "" {
+				result += " and "
+			}
+			result += value
 			v.Set(reflect.New(p.Type).Elem())
 		}
 	}

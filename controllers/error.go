@@ -13,6 +13,9 @@ const (
 	CodeServer
 	CodeBind
 	CodeDatabase
+	CodeValidate
+	CodeExist
+	CodeParse
 )
 
 func GetError(code ErrorCode) map[string]interface{} {
@@ -20,37 +23,32 @@ func GetError(code ErrorCode) map[string]interface{} {
 	switch code {
 	case CodeUnique:
 		message = "添加失败！请检查编号或其他唯一性字段是否重复"
-		break
 	case CodePassword:
 		message = "帐号或密码错误"
-		break
 	case CodeInvalid:
 		message = "无权限"
-		break
 	case CodeAdd:
 		message = "添加失败"
-		break
 	case CodeUpdate:
 		message = "更新失败"
-		break
 	case CodeDelete:
 		message = "删除失败"
-		break
 	case CodeNoData:
 		message = "未查询到数据"
-		break
 	case CodeServer:
 		message = "服务器错误"
-		break
 	case CodeBind:
 		message = "后端服务器执行数据绑定时发生错误, 请检查数据合法性"
-		break
 	case CodeDatabase:
 		message = "后端数据库连接错误, 请通知管理员检查网络连接状况"
-		break
+	case CodeValidate:
+		message = "数据验证发生错误"
+	case CodeExist:
+		message = "查询到数据库中已存在该条信息，操作失败"
+	case CodeParse:
+		message = "数据解析错误"
 	default:
 		message = "后端服务器发生错误"
-		break
 	}
 	return map[string]interface{}{
 		"code":    int(code),

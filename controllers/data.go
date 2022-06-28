@@ -299,7 +299,7 @@ func DataSure(c *gin.Context) {
 	if method == "update" {
 		for _, v := range p {
 			log.Successf("v:%+v\n", v)
-			db.Table("personnels").Where("id = ?", v.ID).Updates(&v)
+			db.Table("personnels").Omit("birthday").Where("id = ?", v.ID).Updates(&v)
 		}
 		r = gin.H{"code": 20000, "message": "更新成功!"}
 		c.JSON(200, r)
@@ -420,7 +420,7 @@ func DepartmentSure(c *gin.Context) {
 func GetPersonnelDataFromInterface() []byte {
 	url := "http://30.29.2.6:8686/unionapi/user/list/json"
 	contentType := "application/x-www-form-urlencoded"
-	baseTime := time.Date(2022, 3, 21, 12, 0, 0, 0, time.Local)
+	baseTime := time.Date(2022, 6, 21, 12, 0, 0, 0, time.Local)
 	if rdb != nil {
 		res, _ := rdb.Exists(ctx, "updateTime").Result()
 		if res > 0 {
@@ -428,8 +428,11 @@ func GetPersonnelDataFromInterface() []byte {
 			updateTime, err := time.Parse(time.RFC3339, temp)
 			if err != nil {
 				log.Error(err)
+			} else {
+				baseTime = updateTime
+				log.Successf("baseTime:%v\n", baseTime)
 			}
-			log.Successf("res:%v\n", updateTime)
+
 		}
 
 	}

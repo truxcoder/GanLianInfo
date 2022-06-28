@@ -5,6 +5,9 @@ import (
 	"GanLianInfo/utils"
 	"fmt"
 	"strconv"
+	"time"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/truxcoder/truxlog"
@@ -27,16 +30,32 @@ type PerName struct {
 	PoliceCode   string `json:"policeCode"`
 }
 
+type PerEduStruct struct {
+	ID             int64  `json:"id,string"`
+	FullTimeEdu    string `json:"fullTimeEdu" update:"full_time_edu"`
+	FullTimeDegree string `json:"fullTimeDegree" update:"full_time_degree"`
+	FullTimeMajor  string `json:"fullTimeMajor" update:"full_time_major"`
+	FullTimeSchool string `json:"fullTimeSchool" update:"full_time_school"`
+	PartTimeEdu    string `json:"partTimeEdu" update:"part_time_edu"`
+	PartTimeDegree string `json:"partTimeDegree" update:"part_time_degree"`
+	PartTimeMajor  string `json:"partTimeMajor" update:"part_time_major"`
+	PartTimeSchool string `json:"partTimeSchool" update:"part_time_school"`
+	FinalEdu       string `json:"finalEdu" update:"final_edu"`
+	FinalDegree    string `json:"finalDegree" update:"final_degree"`
+	FinalMajor     string `json:"finalMajor" update:"final_major"`
+	FinalSchool    string `json:"finalSchool" update:"final_school"`
+}
+
 func PersonnelList(c *gin.Context) {
-	currenPage := c.Query("currentPage")
-	pageSize := c.Query("pageSize")
+	//currenPage := c.Query("currentPage")
+	//pageSize := c.Query("pageSize")
 	var (
-		pd        []PerDept
-		sm        SearchMod
-		r         gin.H
-		err       error
-		result    *gorm.DB
-		count     int64         //总记录数
+		pd     []PerDept
+		sm     SearchMod
+		r      gin.H
+		err    error
+		result *gorm.DB
+		//count     int64         //总记录数
 		paramList []interface{} //where语句参数列表
 		whereStr  string        //where语句
 	)
@@ -48,43 +67,46 @@ func PersonnelList(c *gin.Context) {
 (case when length(d.level_code)>=15 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,15)) else null end) desc, 
 personnels.sort desc nulls first`
 
-	selectStr := "personnels.*,d.name as department_name,d.short_name as department_short_name," +
-		"o.name as organ_name,o.short_name as organ_short_name"
+	selectStr := "personnels.id,personnels.name,personnels.police_code,personnels.gender,personnels.birthday,personnels.nation,personnels.political,personnels.status," +
+		"d.short_name as department_short_name,o.short_name as organ_short_name"
+	//selectStr := "personnels.*,d.name as department_name,d.short_name as department_short_name," +
+	//	"o.name as organ_name,o.short_name as organ_short_name"
 	joinStr := "left join departments as d on personnels.department_id = d.id " +
 		"left join departments as o on personnels.organ_id = o.id"
 
 	if err = c.BindJSON(&sm); err != nil {
 		log.Error(err)
-		//r = Errors.ServerError
 		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
 	}
 	whereStr, paramList = makeWhere(&sm)
 
-	page, _ := strconv.Atoi(currenPage)
-	size, _ := strconv.Atoi(pageSize)
-	offset := (page - 1) * size
-	//先查询数据总量并返回到前端
-	err = db.Model(&models.Personnel{}).Where(whereStr, paramList...).Count(&count).Error
-	if err != nil {
-		r = GetError(CodeServer)
-		c.JSON(200, r)
-		return
-	}
-	if count == 0 {
-		r = GetResponse(ResNoData)
-		c.JSON(200, r)
-		return
-	}
-	result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Limit(size).Offset(offset).Find(&pd)
+	//page, _ := strconv.Atoi(currenPage)
+	//size, _ := strconv.Atoi(pageSize)
+	//offset := (page - 1) * size
+	////先查询数据总量并返回到前端
+	//err = db.Model(&models.Personnel{}).Where(whereStr, paramList...).Count(&count).Error
+	//if err != nil {
+	//	r = GetError(CodeServer)
+	//	c.JSON(200, r)
+	//	return
+	//}
+	//if count == 0 {
+	//	r = GetResponse(ResNoData)
+	//	c.JSON(200, r)
+	//	return
+	//}
+	//result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Limit(size).Offset(offset).Find(&pd)
+	result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Find(&pd)
 
 	if result.Error != nil {
 		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
-	r = gin.H{"code": 20000, "data": &pd, "count": count}
+	//r = gin.H{"code": 20000, "data": &pd, "count": count}
+	r = gin.H{"code": 20000, "data": &pd}
 	c.JSON(200, r)
 }
 
@@ -229,34 +251,10 @@ func PersonnelDelete(c *gin.Context) {
 	return
 }
 
-//func PersonnelDelete(c *gin.Context) {
-//	var err error
-//	var id IdStruct
-//	var r gin.H
-//	if err = c.ShouldBindJSON(&id); err != nil {
-//		r = GetError(CodeBind)
-//		log.Error(err)
-//		c.JSON(200, r)
-//		return
-//	}
-//	result := db.Delete(models.Personnel{}, &id.Id)
-//	err = result.Error
-//	if err != nil {
-//		log.Error(err)
-//		r = GetError(CodeServer)
-//	} else {
-//		message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
-//		r = gin.H{"message": message, "code": 20000}
-//	}
-//	c.JSON(200, r)
-//	return
-//}
-
 func PersonnelResume(c *gin.Context) {
 	var resume, res models.Resume
 	var r gin.H
 	if c.ShouldBindJSON(&resume) != nil {
-		//r = Errors.ServerError
 		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
@@ -272,6 +270,52 @@ func PersonnelResume(c *gin.Context) {
 	return
 }
 
+func PersonnelUpdateEdu(c *gin.Context) {
+	var r gin.H
+	var _map = make(map[string]interface{})
+	var err error
+	//var selectStr = "select full_time_edu, full_time_degree, full_time_major, full_time_school, part_time_edu, part_time_degree, part_time_major,part_time_school, final_edu, final_degree, final_major, final_school"
+	var p PerEduStruct
+	if err = c.ShouldBindJSON(&p); err != nil {
+		r = GetError(CodeBind)
+		log.Error(err)
+		c.JSON(200, r)
+		return
+	}
+	if _map, err = utils.StructToMap(&p); err != nil {
+		r = GetError(CodeBind)
+		log.Error(err)
+		c.JSON(200, r)
+		return
+	}
+	db.Model(&models.Personnel{}).Where("id = ?", p.ID).Updates(_map)
+	r = gin.H{"code": 20000, "message": "人员教育情况更新成功!"}
+	c.JSON(200, r)
+}
+
+func PersonnelUpdateStatus(c *gin.Context) {
+	var r gin.H
+	var p struct {
+		ID     int64 `json:"id,string"`
+		Status bool  `json:"status" update:"status"`
+	}
+	if err := c.ShouldBindJSON(&p); err != nil {
+		r = GetError(CodeBind)
+		log.Error(err)
+		c.JSON(200, r)
+		return
+	}
+	result := db.Table("personnels").Where("id = ?", p.ID).Update("status", p.Status)
+	if result.Error != nil || result.RowsAffected == 0 {
+		r = GetError(CodeUpdate)
+		log.Error(result.Error)
+		c.JSON(200, r)
+		return
+	}
+	r = gin.H{"code": 20000, "message": "人员状态更新成功!"}
+	c.JSON(200, r)
+}
+
 func UpdateIdCode(c *gin.Context) {
 	var r gin.H
 	var p struct {
@@ -285,7 +329,11 @@ func UpdateIdCode(c *gin.Context) {
 		c.JSON(200, r)
 		return
 	}
-	result := db.Table("personnels").Where("id = ?", p.ID).Update("id_code", p.IdCode)
+	// 这里同时修改生日是为了解决以下问题：
+	// 当同步数据时如果修改了身份证号码，会连同生日一起改。有些人员的档案生日和身份证号码不匹配。管理员如果手动修改生日，系统又会改
+	// 回来。所以作了修正：同步数据更新时忽略修改生日。生日在增加人员时或修改身份证号码时（此处）改。
+	birthday := utils.GetBirthdayFromIdCode(p.IdCode)
+	result := db.Model(&models.Personnel{}).Select("id_code", "birthday").Where("id = ?", p.ID).Updates(map[string]interface{}{"id_code": p.IdCode, "birthday": birthday})
 	if result.Error != nil || result.RowsAffected == 0 {
 		//r = Errors.Update
 		r = GetError(CodeUpdate)
@@ -295,6 +343,48 @@ func UpdateIdCode(c *gin.Context) {
 	}
 	setIdCodeMap()
 	r = gin.H{"code": 20000, "message": "身份证号码更新成功!"}
+	c.JSON(200, r)
+}
+
+// UpdateBirthday 修改人员生日
+func UpdateBirthday(c *gin.Context) {
+	var r gin.H
+	var p struct {
+		ID       int64     `json:"id,string"`
+		Birthday time.Time `json:"birthday"`
+	}
+	if err := c.ShouldBindJSON(&p); err != nil {
+		r = GetError(CodeBind)
+		c.JSON(200, r)
+		return
+	}
+	// 用dryRun模式生成sql语句
+	stmt := db.Session(&gorm.Session{DryRun: true}).Model(&models.Personnel{}).Where("id = ?", p.ID).Update("birthday", p.Birthday.Local()).Statement
+	//if result.Error != nil || result.RowsAffected == 0 {
+	//	r = GetError(CodeUpdate)
+	//	log.Error(result.Error)
+	//	c.JSON(200, r)
+	//	return
+	//}
+	// 解析语句为string
+	sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
+	// 生成json内容
+	contentMap := map[string]string{
+		"table":  "personnels",
+		"field":  "birthday",
+		"action": "update",
+		"sql":    sql,
+	}
+	content, err := jsoniter.MarshalToString(contentMap)
+	if err != nil {
+		r = GetError(CodeParse)
+		c.JSON(200, r)
+		return
+	}
+	// 写入日志库
+	WriteLog(c, DangerUpdate, content)
+	db.Exec(sql)
+	r = gin.H{"code": 20000, "message": "人员生日更新成功!"}
 	c.JSON(200, r)
 }
 

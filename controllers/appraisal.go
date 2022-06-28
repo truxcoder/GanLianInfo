@@ -27,22 +27,32 @@ type AppOrgan struct {
 
 func AppraisalList(c *gin.Context) {
 	var mos []AppPerson
-	var mo AppPerson
-	selectStr := "appraisals.*,d.name as organ_name,d.short_name as organ_short_name," +
-		"p.name as personnel_name,p.police_code as police_code"
-	joinStr := "left join departments as d on appraisals.organ_id = d.id " +
-		"left join personnels as p on appraisals.personnel_id = p.id"
+	var mo struct {
+		PersonnelId int64    `json:"personnelId,string"`
+		Years       []string `json:"years" gorm:"-" query:"appraisals.years"`
+		Season      []int8   `json:"season" gorm:"-" query:"appraisals.season"`
+		Conclusion  string   `json:"conclusion"`
+	}
+	selectStr := "appraisals.*,per.name as personnel_name, per.police_code as police_code," +
+		"departments.name as organ_name, departments.short_name as organ_short_name "
+	joinStr := "left join personnels as per on appraisals.personnel_id = per.id " +
+		"left join departments on departments.id = per.organ_id "
 	getList(c, "appraisals", &mo, &mos, &selectStr, &joinStr)
 
 }
 
 func AppraisalDetail(c *gin.Context) {
-	var mos []AppOrgan
-	selectStr := "appraisals.*,d.name as organ_name,d.short_name as organ_short_name"
-	joinStr := "left join departments as d on appraisals.organ_id = d.id "
+	//var mos []AppOrgan
+	var mos []models.Appraisal
+	var selectStr, joinStr string
+	//selectStr := "appraisals.*,departments.name as organ_name, departments.short_name as organ_short_name "
+	//joinStr := "left join personnels as per on appraisals.personnel_id = per.id " +
+	//	"left join departments on departments.id = per.organ_id "
+	//getDetail(c, "appraisals", &mos, &selectStr, &joinStr)
 	getDetail(c, "appraisals", &mos, &selectStr, &joinStr)
 }
 
+// AppraisalPreBatch 批量录入考核信息之前验证将录入的信息在数据库里是否存在。返还已存在的条目到前端
 func AppraisalPreBatch(c *gin.Context) {
 	type temp struct {
 		ID          int64 `json:"id,string"`
@@ -58,7 +68,6 @@ func AppraisalPreBatch(c *gin.Context) {
 
 	var mo struct {
 		Personnels []string `json:"personnels" gorm:"-"`
-		OrganId    string   `json:"organId"`
 		Years      string   `json:"years"`
 		Season     int8     `json:"season"`
 	}
@@ -70,13 +79,11 @@ func AppraisalPreBatch(c *gin.Context) {
 	}
 	if len(mo.Personnels) > 0 {
 		for _, v := range mo.Personnels {
-
 			_v, _ := strconv.Atoi(v)
 			ids = append(ids, int64(_v))
-			//mos = append(mos, models.Appraisal{PersonnelId: int64(_v),
-			//	OrganId: mo.OrganId, Years: mo.Years, Season: mo.Season, Conclusion: mo.Conclusion})
 		}
 	}
+	// 查找数据库里是否有指定人员，指定时间的考核信息
 	db.Table("appraisals").Where(&mo).Where("personnel_id in ?", ids).Find(&mos)
 	if len(mos) > 0 {
 		for _, v := range mos {
@@ -87,6 +94,7 @@ func AppraisalPreBatch(c *gin.Context) {
 	c.JSON(200, r)
 }
 
+// AppraisalBatch 考核信息批量录入
 func AppraisalBatch(c *gin.Context) {
 	var (
 		r       gin.H
@@ -98,7 +106,7 @@ func AppraisalBatch(c *gin.Context) {
 	var mo struct {
 		Added      []string `json:"added" gorm:"-"`   //增加的人员ID列表
 		Updated    []string `json:"updated" gorm:"-"` //修改的考核信息ID列表，注意并不是人员ID列表
-		OrganId    string   `json:"organId"`
+		Organ      string   `json:"organ"`
 		Years      string   `json:"years"`
 		Season     int8     `json:"season"`
 		Conclusion string   `json:"conclusion"`
@@ -113,7 +121,7 @@ func AppraisalBatch(c *gin.Context) {
 		for _, v := range mo.Added {
 			_v, _ := strconv.Atoi(v)
 			added = append(added, models.Appraisal{PersonnelId: int64(_v),
-				OrganId: mo.OrganId, Years: mo.Years, Season: mo.Season, Conclusion: mo.Conclusion})
+				Organ: mo.Organ, Years: mo.Years, Season: mo.Season, Conclusion: mo.Conclusion})
 		}
 	}
 	if len(mo.Updated) > 0 {
@@ -122,6 +130,7 @@ func AppraisalBatch(c *gin.Context) {
 			updated = append(updated, int64(_v))
 		}
 	}
+	// 启用事务，确保添加和修改都顺利执行
 	err = db.Transaction(func(tx *gorm.DB) error {
 		if len(mo.Added) > 0 {
 			if _err := tx.Create(added).Error; _err != nil {

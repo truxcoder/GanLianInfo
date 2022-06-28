@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Insua/gorm-dm8/datatype"
+	"github.com/gin-gonic/gin"
+
 	jsoniter "github.com/json-iterator/go"
 
 	log "github.com/truxcoder/truxlog"
@@ -183,4 +186,15 @@ func getDepartmentSlice() ([]models.Department, error) {
 func GetDepSlice() []models.Department {
 	result, _ := getDepartmentSlice()
 	return result
+}
+
+func WriteLog(c *gin.Context, category LogCategory, content string) {
+	var (
+		l models.Log
+	)
+	l.IP = c.ClientIP()
+	l.AccountId = c.GetString("userId")
+	l.Content = datatype.Clob(content)
+	l.Category = int8(category)
+	db.Create(&l)
 }

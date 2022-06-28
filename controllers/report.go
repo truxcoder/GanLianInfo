@@ -43,12 +43,12 @@ func ReportList(c *gin.Context) {
 		canGlobal, _ = enforcer.Enforce(_userId, "Report", "GLOBAL")
 	}
 	if canGlobal {
-		db.Table("reports").Omit("reports.intro, reports.steps").Find(&mos)
+		db.Table("reports").Omit("reports.intro, reports.steps").Order("id desc").Find(&mos)
 	} else {
 		organId := c.Query("organId")
 		db.Table("reports").Where("id in (?)", db.Table("person_reports").Select("report_id").
 			Where("personnel_id in (?)", db.Table("personnels").Select("id").Where("organ_id = ?", organId))).
-			Omit("reports.intro, reports.steps").Find(&mos)
+			Omit("reports.intro, reports.steps").Order("id desc").Find(&mos)
 	}
 	for _, v := range mos {
 		ids = append(ids, v.ID)

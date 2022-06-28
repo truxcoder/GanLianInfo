@@ -82,12 +82,12 @@ func StructToMap(in interface{}) (map[string]interface{}, error) {
 	for i := 0; i < inT.NumField(); i++ {
 		p := inT.Field(i)
 		if !p.Anonymous {
-			out[p.Name] = inV.Field(i)
+			out[p.Name] = inV.Field(i).Interface()
 		} else {
 			field := inV.Field(i)
 			for j := 0; j < p.Type.NumField(); j++ {
 				pp := p.Type.Field(j)
-				out[pp.Name] = field.Field(j)
+				out[pp.Name] = field.Field(j).Interface()
 			}
 		}
 	}
