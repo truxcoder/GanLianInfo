@@ -43,8 +43,6 @@ func init() {
 
 func Connect() *gorm.DB {
 	dsn := "dm://" + cfg.UserName + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port
-	//dsn := "dm://GANLIAN:SCJD5102!@192.168.17.104:5236" //省局
-	//dsn := "dm://GANLIAN:SCJD5102!@10.10.10.200:5236" //家里
 	db, _ := gorm.Open(dm8.Open(dsn), &gorm.Config{})
 	return db
 }
