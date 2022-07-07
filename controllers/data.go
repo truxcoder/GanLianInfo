@@ -217,10 +217,12 @@ func DataSync(c *gin.Context) {
 		if v.IdCode == "" {
 			continue
 		}
+
 		result := db.Model(models.Personnel{}).Where("id_code = ?", v.IdCode).Limit(1).Find(&personnel)
 		isFound := result.RowsAffected == 1
 		isValid := v.UserType == 1 && v.DataStatus == 0
 		isUpdated := v.UpdateTime.After(personnel.UpdateTime)
+
 		if !isFound && !isValid {
 			continue
 		}
@@ -235,6 +237,10 @@ func DataSync(c *gin.Context) {
 		//db.Raw(stmt, v.DepartmentID).Scan(&id)
 		id = getOrganIdFromDepartmentId(v.DepartmentID)
 		v.OrganID = id
+		// 过滤掉泸州所和攀枝花所
+		if v.OrganID == "c84c0a0ae2e54c5baf8c9d8c86fc9761" || v.OrganID == "6a8f659d05a74ee582c4880083ed606d" {
+			continue
+		}
 
 		if !isFound && isValid {
 			var _add []PersonSame
