@@ -45,6 +45,7 @@ func OrganList(c *gin.Context) {
 	c.JSON(200, r)
 }
 
+// HeadcountList 编制数列表
 func HeadcountList(c *gin.Context) {
 	var (
 		h     []Headcount
@@ -52,10 +53,9 @@ func HeadcountList(c *gin.Context) {
 		err   error
 		total int64
 	)
-
 	selectStr := "departments.id,departments.name,departments.short_name,departments.sort,departments.headcount,(select count (1) from personnels where personnels.organ_id = departments.id and personnels.status = 1) use"
 	result := db.Table("departments").Select(selectStr).Where("dept_type = ?", 1).Order("sort desc,level_code asc").Find(&h)
-	if err = db.Model(&models.Personnel{}).Count(&total).Error; err != nil {
+	if err = db.Model(&models.Personnel{}).Where("status = ?", 1).Count(&total).Error; err != nil {
 		//r = Errors.ServerError
 		r = GetError(CodeServer)
 		c.JSON(200, r)
@@ -74,6 +74,7 @@ func HeadcountList(c *gin.Context) {
 
 //"select personnels.organ_id, count(case when levels.name = '正科级' and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) zk from posts \nleft join levels on posts.level_id = levels.id \nleft join personnels on posts.personnel_id = personnels.id\ngroup by personnels.organ_id;"
 
+// DepartmentPosition 职数占用
 func DepartmentPosition(c *gin.Context) {
 	var (
 		d   []models.Department
@@ -81,11 +82,11 @@ func DepartmentPosition(c *gin.Context) {
 		err error
 		dp  []struct {
 			OrganId string `json:"organId"`
-			Zk      int64  `json:"zk"`
-			Fk      int64  `json:"fk"`
-			Zc      int64  `json:"zc"`
-			Fc      int64  `json:"fc"`
-			Ft      int64  `json:"ft"`
+			Zk      int64  `json:"zk"` //正科
+			Fk      int64  `json:"fk"` //副科
+			Zc      int64  `json:"zc"` //正处
+			Fc      int64  `json:"fc"` //副处
+			Ft      int64  `json:"ft"` //副厅
 		}
 	)
 
