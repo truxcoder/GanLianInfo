@@ -53,6 +53,10 @@ func AccountSync(c *gin.Context) {
 		}
 		id = getOrganIdFromDepartmentId(v.DepartmentID)
 		v.OrganID = id
+		// 过滤掉泸州所和攀枝花所
+		if v.OrganID == "c84c0a0ae2e54c5baf8c9d8c86fc9761" || v.OrganID == "6a8f659d05a74ee582c4880083ed606d" {
+			continue
+		}
 		v.ID = getIdFromIdCode(v.IdCode)
 
 		if !isFound && isValid {
