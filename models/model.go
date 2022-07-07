@@ -74,8 +74,8 @@ type Personnel struct {
 	Hometown                string    `json:"hometown"`
 	Birthplace              string    `json:"birthplace"`
 	Health                  string    `json:"health"`
-	TechnicalTitle          string    `json:"technicalTitle"`
-	Specialty               string    `json:"specialty"`
+	TechnicalTitle          string    `json:"technicalTitle" update:"technical_title"`
+	Specialty               string    `json:"specialty" update:"specialty"`
 	Marriage                string    `json:"marriage"`
 	Remark                  string    `json:"remark" update:"remark"`
 	UserType                int8      `json:"userType"`
