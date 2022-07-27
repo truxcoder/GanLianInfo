@@ -409,12 +409,11 @@ func DepartmentSure(c *gin.Context) {
 		}
 		if err := c.ShouldBindJSON(&id); err != nil {
 			log.Error(err)
-			//r = Errors.ServerError
 			r = GetError(CodeBind)
 			c.JSON(200, r)
 			return
 		}
-		db.Where("id in ?", &id.Id).Delete(models.Department{})
+		db.Where("id in ?", id.Id).Delete(models.Department{})
 		setDepartmentMap()
 		setDepartmentSlice()
 		r = gin.H{"code": 20000, "message": "删除成功!"}
@@ -438,9 +437,40 @@ func GetPersonnelDataFromInterface() []byte {
 				baseTime = updateTime
 				log.Successf("baseTime:%v\n", baseTime)
 			}
-
 		}
+	}
+	data := "Authorization=438019355f6940fba3b98316d97fd5f0&updateStartTime=" + baseTime.Format(timeFormat)
+	resp, err := http.Post(url, contentType, strings.NewReader(data))
+	if err != nil {
+		fmt.Printf("post failed, err:%v\n", err)
+		return nil
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("get resp failed, err:%v\n", err)
+		return nil
+	}
+	list := jsoniter.Get(b, "data").ToString()
+	return []byte(list)
+}
 
+func GetPersonnelDataFromInterfaceForAccount() []byte {
+	url := "http://30.29.2.6:8686/unionapi/user/list/json"
+	contentType := "application/x-www-form-urlencoded"
+	baseTime := time.Date(2022, 1, 21, 12, 0, 0, 0, time.Local)
+	if rdb != nil {
+		res, _ := rdb.Exists(ctx, "accountUpdateTime").Result()
+		if res > 0 {
+			temp, _ := rdb.Get(ctx, "accountUpdateTime").Result()
+			updateTime, err := time.Parse(time.RFC3339, temp)
+			if err != nil {
+				log.Error(err)
+			} else {
+				baseTime = updateTime
+				log.Successf("GetPersonnelDataFromInterfaceForAccount baseTime:%v\n", baseTime)
+			}
+		}
 	}
 	data := "Authorization=438019355f6940fba3b98316d97fd5f0&updateStartTime=" + baseTime.Format(timeFormat)
 	resp, err := http.Post(url, contentType, strings.NewReader(data))

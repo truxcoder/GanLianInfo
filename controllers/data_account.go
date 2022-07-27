@@ -26,7 +26,7 @@ type Account struct {
 }
 
 func AccountSync(c *gin.Context) {
-	data := GetPersonnelDataFromInterface()
+	data := GetPersonnelDataFromInterfaceForAccount()
 	var p, added, updated, deleted PerSlice
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	err := json.Unmarshal(data, &p)
@@ -65,17 +65,14 @@ func AccountSync(c *gin.Context) {
 			updated = append(updated, v)
 		} else if isFound && isUpdated {
 			// TODO: 这里的删除逻辑需要大数据中心开放身份证验证接口，否则无法实现
-			//v.ID = personnel.ID
-			//deleted = append(deleted, v)
+			//v.ID = account.ID
+			deleted = append(deleted, v)
 		}
 	}
 	if len(added) == 0 && len(updated) == 0 && len(deleted) == 0 && rdb != nil {
 		//res, _ := rdb.Exists(ctx, "updateTime").Result()
 		now := time.Now()
-		rdb.Set(ctx, "updateTime", now, time.Hour*2400)
-		//if res == 0 {
-		//	rdb.HSet(ctx, "personOrganMap", _map)
-		//}
+		rdb.Set(ctx, "accountUpdateTime", now, time.Hour*2400)
 
 	}
 	r := gin.H{"code": 20000, "add": &added, "update": &updated, "delete": &deleted}

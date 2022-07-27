@@ -34,13 +34,18 @@ func AppointmentList(c *gin.Context) {
 // AppointmentTableDetail 导出干审表
 func AppointmentTableDetail(c *gin.Context) {
 	var (
-		err        error
-		r          gin.H
-		zero       time.Time
-		awards     []models.Award
-		punishes   []models.Punish
+		err      error
+		r        gin.H
+		zero     time.Time
+		awards   []models.Award
+		punishes []models.Punish
+
 		appraisals []models.Appraisal
 	)
+	var disciplines []struct {
+		models.Discipline
+		DictName string `json:"dictName"`
+	}
 
 	var mo struct {
 		PersonnelId int64 `json:"personnelId,string"`
@@ -50,6 +55,7 @@ func AppointmentTableDetail(c *gin.Context) {
 		Gender         string    `json:"gender"`
 		Birthday       string    `json:"birthday"`
 		Nation         string    `json:"nation"`
+		IdCode         string    `json:"idCode"`
 		JoinPartyDay   time.Time `json:"joinPartyDay"`
 		StartJobDay    time.Time `json:"startJobDay"`
 		Hometown       string    `json:"hometown"`
@@ -82,8 +88,8 @@ func AppointmentTableDetail(c *gin.Context) {
 		Political string    `json:"political"`
 	}
 	var thisYear = time.Now().Year()
-	var threeYears = []string{strconv.Itoa(thisYear - 1), strconv.Itoa(thisYear - 2), strconv.Itoa(thisYear - 3)}
-	var selectStr = "name,gender,birthday,nation,join_party_day,start_job_day,hometown,birthplace,health,technical_title,specialty,full_time_edu,full_time_degree,full_time_major,full_time_school,part_time_edu,part_time_degree,part_time_major,part_time_school,resumes.content as resume"
+	var twoYears = []string{strconv.Itoa(thisYear - 1), strconv.Itoa(thisYear - 2)}
+	var selectStr = "name,gender,birthday,nation,id_code,join_party_day,start_job_day,hometown,birthplace,health,technical_title,specialty,full_time_edu,full_time_degree,full_time_major,full_time_school,part_time_edu,part_time_degree,part_time_major,part_time_school,resumes.content as resume"
 	var joinStr = "left join resumes on resumes.personnel_id = personnels.id"
 	var postSelect = "posts.department, posts.organ, positions.name as position_name, positions.is_leader as is_leader"
 	var postJoin = "left join positions on positions.id = posts.position_id"
@@ -96,9 +102,10 @@ func AppointmentTableDetail(c *gin.Context) {
 	db.Table("personnels").Select(selectStr).Joins(joinStr).Where("personnels.id = ?", mo.PersonnelId).Limit(1).Find(&mos)
 	db.Table("posts").Select(postSelect).Joins(postJoin).Where("personnel_id = ? and end_day = ?", mo.PersonnelId, zero).Find(&posts)
 	db.Table("families").Where("personnel_id = ?", mo.PersonnelId).Find(&family)
-	db.Table("awards").Where("personnel_id = ?", mo.PersonnelId).Find(&awards)
+	db.Table("awards").Where("personnel_id = ? and ((category = 1 and grade < 5) or (category = 2 and grade in (20, 21)))", mo.PersonnelId).Find(&awards)
 	db.Table("punishes").Where("personnel_id = ?", mo.PersonnelId).Find(&punishes)
-	db.Table("appraisals").Where("personnel_id = ? and season = 100 and years in ?", mo.PersonnelId, threeYears).Find(&appraisals)
-	r = gin.H{"code": 20000, "data": &mos, "posts": &posts, "family": &family, "awards": &awards, "punishes": &punishes, "appraisals": &appraisals}
+	db.Table("disciplines").Select("disciplines.*,dis_dicts.name as dict_name").Joins("left join dis_dicts on dis_dicts.id = disciplines.dict_id").Where("personnel_id = ?", mo.PersonnelId).Find(&disciplines)
+	db.Table("appraisals").Where("personnel_id = ? and season = 100 and years in ?", mo.PersonnelId, twoYears).Find(&appraisals)
+	r = gin.H{"code": 20000, "data": &mos, "posts": &posts, "family": &family, "awards": &awards, "punishes": &punishes, "disciplines": &disciplines, "appraisals": &appraisals}
 	c.JSON(200, r)
 }
