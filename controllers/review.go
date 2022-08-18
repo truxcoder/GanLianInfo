@@ -5,6 +5,7 @@ import (
 	"GanLianInfo/utils"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"gorm.io/gorm"
 
@@ -21,7 +22,11 @@ func ReviewList(c *gin.Context) {
 		ReviewerName   string `json:"reviewerName"`
 		OrganShortName string `json:"organShortName"`
 	}
-	var mo models.Review
+	//var mo models.Review
+	var mo struct {
+		models.Review
+		Categories []int8 `json:"categories" gorm:"-" query:"reviews.category"`
+	}
 	selectStr := "reviews.*,personnels.name as personnel_name,per.name as reviewer_name," +
 		"departments.short_name as organ_short_name"
 	joinStr := "left join personnels on reviews.personnel_id = personnels.id" +
@@ -43,6 +48,10 @@ func ReviewPass(c *gin.Context) {
 		reviewMap   = make(map[string]interface{})
 		dataMap     = make(map[string]interface{})
 	)
+	var content struct {
+		Action string `json:"action"`
+		Data   string `json:"data"`
+	}
 	if err = c.ShouldBindJSON(&mo); err != nil {
 		r = GetError(CodeBind)
 		log.Error(err)
@@ -164,9 +173,180 @@ func ReviewPass(c *gin.Context) {
 			return nil
 		})
 	}
+	// 分类为处分管理、经济责任审计、个人事项核查、巡视巡查检查
+	if mo.Category == 101 || mo.Category == 103 || mo.Category == 104 || mo.Category == 105 {
+		if err = json.Unmarshal([]byte(mo.Content), &content); err != nil {
+			r = GetError(CodeParse)
+			log.Error(err)
+			c.JSON(200, r)
+			return
+		}
+
+		//_mo 操作数据库时model用哪个模型, _data解析json数据到哪个模型
+		var _mo, _data interface{}
+		switch mo.Category {
+		case 101:
+			_mo = &models.Discipline{}
+			_data = new(models.Discipline)
+		case 103, 104, 105:
+			_mo = &models.Affair{}
+			_data = new(models.Affair)
+		}
+		if err = json.Unmarshal([]byte(content.Data), _data); err != nil {
+			r = GetError(CodeParse)
+			log.Error(err)
+			c.JSON(200, r)
+			return
+		}
+		if content.Action == "delete" {
+			err = db.Transaction(func(tx *gorm.DB) error {
+				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+					return _err
+				}
+				if _err := tx.Debug().Delete(_data).Error; _err != nil {
+					return _err
+				}
+				return nil
+			})
+		}
+		if content.Action == "add" {
+			err = db.Transaction(func(tx *gorm.DB) error {
+				log.Successf("_data:%+v\n", reflect.TypeOf(_data).String())
+				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+					return _err
+				}
+				if _err := tx.Debug().Create(_data).Error; _err != nil {
+					return _err
+				}
+				return nil
+			})
+		}
+
+		if content.Action == "update" {
+			err = db.Transaction(func(tx *gorm.DB) error {
+				if _err := tx.Debug().Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+					return _err
+				}
+				if _err := tx.Debug().Updates(_data).Error; _err != nil {
+					return _err
+				}
+				if res, t := updateZeroFieldsToMap(_data); t > 0 {
+					if _err := tx.Debug().Model(_mo).Updates(res).Error; _err != nil {
+						return _err
+					}
+				}
+				return nil
+			})
+		}
+	}
+
+	// 分类为信访举报
+	if mo.Category == 102 {
+		if err = json.Unmarshal([]byte(mo.Content), &content); err != nil {
+			r = GetError(CodeParse)
+			log.Error(err)
+			c.JSON(200, r)
+			return
+		}
+		var personReports []models.PersonReport
+		if content.Action == "delete" {
+			var _mo models.Report
+			if err = json.Unmarshal([]byte(content.Data), &_mo); err != nil {
+				r = GetError(CodeParse)
+				log.Error(err)
+				c.JSON(200, r)
+				return
+			}
+			err = db.Transaction(func(tx *gorm.DB) error {
+				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+					return _err
+				}
+				if _err := tx.Debug().Delete(&_mo).Error; _err != nil {
+					return _err
+				}
+				return nil
+			})
+		}
+		if content.Action == "add" {
+			var _mo struct {
+				Report models.Report `json:"report"`
+				Person []string      `json:"person"`
+			}
+			if err = json.Unmarshal([]byte(content.Data), &_mo); err != nil {
+				r = GetError(CodeParse)
+				log.Error(err)
+				c.JSON(200, r)
+				return
+			}
+			err = db.Transaction(func(tx *gorm.DB) error {
+				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+					return _err
+				}
+				if _err := tx.Debug().Create(&_mo.Report).Error; _err != nil {
+					return _err
+				}
+				return nil
+			})
+			// 这里写入人员和举报关联表的操作如果写在事务Transaction里，会报违反引用约束的错误。原因是person_reports表外键引用了reports表。如果不写入
+			// reports表，就没有对应的report_id。所以不能在事务中处理。
+			if err == nil && len(_mo.Person) > 0 {
+				id := _mo.Report.ID
+				for _, v := range _mo.Person {
+					_v, _ := strconv.Atoi(v)
+					personReports = append(personReports, models.PersonReport{ReportId: id, PersonnelId: int64(_v)})
+				}
+				if _err := db.Create(&personReports).Error; _err != nil {
+					err = _err
+				}
+			}
+		}
+
+		if content.Action == "update" {
+			var _mo struct {
+				Report models.Report `json:"report"`
+				Add    []string      `json:"add"`
+				Del    []string      `json:"del"`
+			}
+			if err = json.Unmarshal([]byte(content.Data), &_mo); err != nil {
+				r = GetError(CodeParse)
+				log.Error(err)
+				c.JSON(200, r)
+				return
+			}
+			err = db.Transaction(func(tx *gorm.DB) error {
+				if _err := tx.Debug().Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+					return _err
+				}
+				if _err := tx.Debug().Updates(&_mo.Report).Error; _err != nil {
+					return _err
+				}
+				id := _mo.Report.ID
+				if len(_mo.Add) > 0 {
+					for _, v := range _mo.Add {
+						_v, _ := strconv.Atoi(v)
+						personReports = append(personReports, models.PersonReport{ReportId: id, PersonnelId: int64(_v)})
+					}
+					if _err := db.Create(&personReports).Error; _err != nil {
+						return _err
+					}
+				}
+				if len(_mo.Del) > 0 {
+					var _del []int64
+					for _, v := range _mo.Del {
+						_v, _ := strconv.Atoi(v)
+						_del = append(_del, int64(_v))
+					}
+					if _err := db.Where("report_id = ? and personnel_id in ?", id, _del).Delete(models.PersonReport{}).Error; _err != nil {
+						return _err
+					}
+				}
+				return nil
+			})
+		}
+	}
 
 	if err != nil {
-		r = GetError(CodeDatabase)
+		r = GetError(CodeDataWrite)
 		log.Error(err)
 		c.JSON(200, r)
 		return

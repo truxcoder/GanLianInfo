@@ -21,6 +21,17 @@ func GetAgeFromIdCode(code string) int {
 	return age
 }
 
+func GetAgeFromBirthday(birthday time.Time) int {
+	year := birthday.Year()
+	month := int(birthday.Month())
+	day := birthday.Day()
+	age := time.Now().Year() - year
+	if int(time.Now().Month()) < month || (int(time.Now().Month()) == month && time.Now().Day() < day) {
+		age--
+	}
+	return age
+}
+
 func GetBirthdayFromIdCode(code string) time.Time {
 	//code = strings.TrimSpace(code)
 	reg := regexp.MustCompile(`^[1-9]\d{5}(18|19|20)(\d{2})((0[1-9])|(1[0-2]))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$`)

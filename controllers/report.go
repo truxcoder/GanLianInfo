@@ -156,7 +156,8 @@ func ReportAdd(c *gin.Context) {
 		c.JSON(200, r)
 		return
 	}
-	db.Table("reports").Create(&model.Report)
+	//db.Table("reports").Create(&model.Report)
+	db.Model(&models.Report{}).Create(&model.Report)
 	if len(model.Person) == 0 {
 		r = gin.H{"message": "添加成功！", "code": 20000}
 		c.JSON(200, r)

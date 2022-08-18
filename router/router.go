@@ -45,6 +45,7 @@ func Register() *gin.Engine {
 	router.POST("/dashboard", authMiddleware, controllers.DashboardData)
 	router.POST("/upload", authMiddleware, controllers.Upload)
 	router.POST("/pre", authMiddleware, controllers.PreEdit)
+	router.POST("/pre_batch", authMiddleware, controllers.PreBatchEdit)
 	user := router.Group("user")
 	{
 		user.POST("/login", controllers.Login)
@@ -63,6 +64,7 @@ func Register() *gin.Engine {
 		personnel.POST("/update", controllers.PersonnelUpdate)
 		//personnel.POST("/delete", controllers.PersonnelDelete)
 		personnel.DELETE("/:id", controllers.PersonnelDelete)
+		personnel.POST("/export_list", controllers.PersonnelExportList)
 		personnel.POST("/base_list", controllers.PersonnelBaseList)
 		personnel.POST("/name_list", controllers.PersonnelNameList)
 		personnel.POST("/resume", controllers.PersonnelResume)

@@ -42,7 +42,7 @@ func init() {
 }
 
 func Connect() *gorm.DB {
-	dsn := "dm://" + cfg.UserName + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port
+	dsn := "dm://" + cfg.UserName + ":" + cfg.Password + "@" + cfg.Host + ":" + cfg.Port + "?autoCommit=false"
 	db, _ := gorm.Open(dm8.Open(dsn), &gorm.Config{})
 	return db
 }

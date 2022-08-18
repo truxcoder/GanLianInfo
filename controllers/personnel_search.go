@@ -203,7 +203,7 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		paramList = append(paramList, sm.FinalDegree)
 	}
 	if len(sm.FinalMajor) > 0 {
-		for k, v := range sm.FullTimeMajor {
+		for k, v := range sm.FinalMajor {
 			if k == 0 {
 				whereStr += " AND (final_major LIKE ?"
 				paramList = append(paramList, "%"+v+"%")

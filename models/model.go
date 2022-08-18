@@ -35,6 +35,7 @@ func (b *Base) BeforeUpdate(tx *gorm.DB) (err error) {
 	return
 }
 
+// Personnel 人员表
 type Personnel struct {
 	Base
 	UserId                  string    `json:"userId"`
@@ -86,6 +87,7 @@ type Personnel struct {
 	UpdateTime              time.Time `json:"updateTime"`
 }
 
+// Department 单位和部门表
 type Department struct {
 	ID          string `json:"id" gorm:"size:50;primaryKey"`
 	CreatedAt   time.Time
@@ -106,6 +108,7 @@ type Department struct {
 	UpdateTime  time.Time `json:"updateTime"`
 }
 
+// Family 人员家庭表
 type Family struct {
 	Base
 	PersonnelId int64     `json:"personnelId,string"`
@@ -223,6 +226,7 @@ type Punish struct {
 	Organ       string    `json:"organ"`
 }
 
+// Module 功能模块表
 type Module struct {
 	Base
 	Name      string `json:"name"`
@@ -280,6 +284,7 @@ type EduDict struct {
 	Sort     int16  `json:"sort"`
 }
 
+// Report 信访举报表
 type Report struct {
 	Base
 	Title      string        `json:"title"`
@@ -289,6 +294,7 @@ type Report struct {
 	Steps      datatype.Clob `json:"steps"`
 }
 
+// PersonReport 人员举报关联表
 type PersonReport struct {
 	BaseId
 	PersonnelId int64 `json:"personnelId,string"`
@@ -333,6 +339,7 @@ type Talent struct {
 	BeExaminerDay time.Time `json:"beExaminerDay"`
 }
 
+// TalentPick 人才抽取表
 type TalentPick struct {
 	Base
 	PickerId int64         `json:"pickerId,string"`
@@ -396,6 +403,7 @@ type Feedback struct {
 	Content     datatype.Clob `json:"content"`
 }
 
+// Log 日志表
 type Log struct {
 	Base
 	Category  int8          `json:"category"`

@@ -143,10 +143,31 @@ func Delete(c *gin.Context) {
 	return
 }
 
+// PreEdit 提交审核
 func PreEdit(c *gin.Context) {
 	var (
 		r   gin.H
 		mo  models.Review
+		err error
+	)
+
+	if err = c.ShouldBindJSON(&mo); err != nil {
+		r = GetError(CodeBind)
+		log.Error(err)
+		c.JSON(200, r)
+		return
+	}
+
+	db.Create(&mo)
+	r = gin.H{"message": "提交成功！请等待审核", "code": 20000}
+	c.JSON(200, r)
+}
+
+// PreBatchEdit 提交批量审核
+func PreBatchEdit(c *gin.Context) {
+	var (
+		r   gin.H
+		mo  []models.Review
 		err error
 	)
 
@@ -200,4 +221,27 @@ func updateZeroFields(model interface{}) {
 		db.Model(model).Updates(result)
 		//log.Successf("更新了%d个零值字段:%+v\n", total, result)
 	}
+}
+
+// 把零值更新字段转为map
+func updateZeroFieldsToMap(model interface{}) (map[string]interface{}, int) {
+	var result = make(map[string]interface{})
+	var total = 0
+	T := reflect.Indirect(reflect.ValueOf(model)).Type()
+	V := reflect.Indirect(reflect.ValueOf(model))
+	for i := 0; i < T.NumField(); i++ {
+		p := T.Field(i)
+		v := V.Field(i)
+
+		if !p.Anonymous && ast.IsExported(p.Name) {
+			if !v.IsZero() {
+				continue
+			}
+			if tag, ok := p.Tag.Lookup("update"); ok {
+				result[tag] = v.Interface()
+				total++
+			}
+		}
+	}
+	return result, total
 }

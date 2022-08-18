@@ -139,6 +139,40 @@ func PersonnelDetail(c *gin.Context) {
 	c.JSON(200, r)
 }
 
+// PersonnelExportList 基本信息列表，用于获取导出人员信息
+func PersonnelExportList(c *gin.Context) {
+	var p []PerDept
+	var r gin.H
+	var ids []int64
+	var mo struct {
+		Id []string `json:"id"`
+	}
+	sort := `(case when length(d.level_code)>=3 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,3)) else null end) desc,
+(case when length(d.level_code)>=6 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,6)) else null end) desc,
+(case when length(d.level_code)>=9 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,9)) else null end) desc,
+(case when length(d.level_code)>=12 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,12)) else null end) desc,
+(case when length(d.level_code)>=15 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,15)) else null end) desc, 
+personnels.sort desc nulls first`
+	if c.ShouldBindJSON(&mo) != nil {
+		r = GetError(CodeBind)
+		c.JSON(200, r)
+		return
+	}
+
+	for _, v := range mo.Id {
+		_v, _ := strconv.Atoi(v)
+		ids = append(ids, int64(_v))
+	}
+
+	selectStr := "personnels.*, departments.name as organ_name,departments.short_name as organ_short_name, " +
+		" d.name as department_name,d.short_name as department_short_name"
+	joinStr := "left join departments on personnels.organ_id = departments.id " +
+		"left join departments as d on personnels.department_id = d.id "
+	db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where("personnels.id in ?", ids).Order(sort).Find(&p)
+	r = gin.H{"code": 20000, "data": &p}
+	c.JSON(200, r)
+}
+
 // PersonnelBaseList 基本信息列表，用于人员选择等
 func PersonnelBaseList(c *gin.Context) {
 	var p []PerDept

@@ -16,6 +16,7 @@ const (
 	CodeValidate
 	CodeExist
 	CodeParse
+	CodeDataWrite
 )
 
 func GetError(code ErrorCode) map[string]interface{} {
@@ -47,6 +48,8 @@ func GetError(code ErrorCode) map[string]interface{} {
 		message = "查询到数据库中已存在该条信息，操作失败"
 	case CodeParse:
 		message = "数据解析错误"
+	case CodeDataWrite:
+		message = "写入数据时发生错误!"
 	default:
 		message = "后端服务器发生错误"
 	}
