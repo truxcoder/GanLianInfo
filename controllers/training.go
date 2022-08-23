@@ -18,12 +18,18 @@ func TrainingList(c *gin.Context) {
 	var err error
 	var count int64 //总记录数
 	whereTitle := "1 = 1"
+	whereOrganId := "1 = 1"
 
 	if err = c.BindJSON(&mo); err != nil {
 		log.Error(err)
 		r = GetError(CodeBind)
 		c.JSON(200, r)
 		return
+	}
+
+	// 如果后台传递的参数包含organId，说明浏览者不具备全局权限。则过滤掉其他单位的仅本单位参加为“是”的数据。
+	if c.Query("organId") != "" {
+		whereOrganId = "is_inner = 1 or (is_inner = 2 and organ_id = '" + c.Query("organId") + "')"
 	}
 	//因为title要用模糊查询like,所以这里拦截后端查询数据，对title进行处理
 	if mo.Title != "" {
@@ -34,7 +40,7 @@ func TrainingList(c *gin.Context) {
 	size, offset := getPageData(c)
 
 	//先查询数据总量并返回到前端
-	if err = db.Table("trainings").Where(&mo).Where(whereTitle).Count(&count).Error; err != nil {
+	if err = db.Table("trainings").Where(&mo).Where(whereTitle).Where(whereOrganId).Count(&count).Error; err != nil {
 		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
@@ -44,7 +50,7 @@ func TrainingList(c *gin.Context) {
 		c.JSON(200, r)
 		return
 	}
-	result := db.Table("trainings").Where(&mo).Where(whereTitle).Limit(size).Offset(offset).Order("start_time desc").Find(&mos)
+	result := db.Table("trainings").Where(&mo).Where(whereTitle).Where(whereOrganId).Limit(size).Offset(offset).Order("start_time desc").Find(&mos)
 	err = result.Error
 	if err != nil {
 		r = GetError(CodeServer)
@@ -135,7 +141,7 @@ func TrainPersonDelete(c *gin.Context) {
 			trainIdSlice = append(trainIdSlice, int64(_v))
 		}
 	}
-	result := db.Debug().Where("personnel_id = ? and train_id in (?)", mos.PersonnelId, trainIdSlice).Delete(&models.PersonTrain{})
+	result := db.Where("personnel_id = ? and train_id in (?)", mos.PersonnelId, trainIdSlice).Delete(&models.PersonTrain{})
 	err := result.Error
 	if err != nil {
 		log.Error(err)
