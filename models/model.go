@@ -144,6 +144,7 @@ type Training struct {
 	Period     int16         `json:"period"`                   //学时
 	StartTime  time.Time     `json:"startTime"`
 	EndTime    time.Time     `json:"endTime"`
+	OrganID    string        `json:"organId"` //信息所属单位的Id,结合isInner使用
 }
 
 // PersonTrain 培训参加表
