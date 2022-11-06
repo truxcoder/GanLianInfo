@@ -11,6 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 本模块的删除模块牵涉到三张表关联，人员表，培训表，以及人员培训的关联表。
+// 涉及到培训信息删除时，在数据库中做了级联约束。
+
 func TrainingList(c *gin.Context) {
 	var mos []models.Training
 	var mo models.Training

@@ -220,6 +220,10 @@ func Register() *gin.Engine {
 		review.POST("feedback", controllers.FeedbackList)
 		review.POST("pass", controllers.ReviewPass)
 	}
+	analysis := router.Group("analysis", authMiddleware)
+	{
+		analysis.POST("police", controllers.AnalysisPoliceTeamData)
+	}
 	talent := router.Group("talent", authMiddleware)
 	{
 		talent.POST("list/:category", controllers.TalentList)

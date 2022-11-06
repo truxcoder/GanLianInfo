@@ -56,6 +56,9 @@ func AppointmentTableDetail(c *gin.Context) {
 		Birthday       string    `json:"birthday"`
 		Nation         string    `json:"nation"`
 		IdCode         string    `json:"idCode"`
+		PoliceCode     string    `json:"policeCode"`
+		Political      string    `json:"political"`
+		Marriage       string    `json:"marriage"`
 		JoinPartyDay   time.Time `json:"joinPartyDay"`
 		StartJobDay    time.Time `json:"startJobDay"`
 		Hometown       string    `json:"hometown"`
@@ -89,7 +92,7 @@ func AppointmentTableDetail(c *gin.Context) {
 	}
 	var thisYear = time.Now().Year()
 	var twoYears = []string{strconv.Itoa(thisYear - 1), strconv.Itoa(thisYear - 2)}
-	var selectStr = "name,gender,birthday,nation,id_code,join_party_day,start_job_day,hometown,birthplace,health,technical_title,specialty,full_time_edu,full_time_degree,full_time_major,full_time_school,part_time_edu,part_time_degree,part_time_major,part_time_school,resumes.content as resume"
+	var selectStr = "name,gender,birthday,nation,id_code,police_code,political,marriage,join_party_day,start_job_day,hometown,birthplace,health,technical_title,specialty,full_time_edu,full_time_degree,full_time_major,full_time_school,part_time_edu,part_time_degree,part_time_major,part_time_school,resumes.content as resume"
 	var joinStr = "left join resumes on resumes.personnel_id = personnels.id"
 	var postSelect = "posts.department, posts.organ, positions.name as position_name, positions.is_leader as is_leader"
 	var postJoin = "left join positions on positions.id = posts.position_id"

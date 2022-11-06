@@ -111,7 +111,10 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		case "willRetireInTwoYear":
 			whereStr += " AND ((personnels.birthday <= ? and personnels.gender = '男') or (personnels.birthday <= ? and personnels.gender = '女'))"
 			paramList = append(paramList, yearsAgo(58), yearsAgo(53))
+		case "willUp1x", "willUp2x", "willUp1d", "willUp2d", "willUp3d", "willUp4d":
+			whereStr += buildWillUpStr(&paramList, sm.Extra)
 		}
+
 		return whereStr, paramList
 	}
 	if sm.Name != "" {
@@ -357,6 +360,31 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		}
 	}
 	return whereStr, paramList
+}
+
+func buildWillUpStr(paramList *[]interface{}, extra string) (whereStr string) {
+	var zero time.Time
+	now := time.Now().Local()
+	StrNotInPunish := " AND personnels.id not in (select personnel_id from disciplines where disciplines.deadline > ?) "
+	switch extra {
+	case "willUp1x":
+		// 此处查询逻辑很绕。对于任职信息的判断有两种情况符合条件。
+		// 1，end_day为空，start_day小于指定日期。
+		// 2，end_day不为空，start_day小于指定日期。同时在posts表里能找到这样一条记录，
+		// 它的position_id等于当前记录的position_id，它的personnel_id等于当前记录的personnel_id，它的end_day为空。
+		whereStr += " AND personnels.id in (select personnel_id from posts where posts.position_id in (select id from positions where positions.name = '二级巡视员' or (positions.is_leader = 2 and positions.level_id = (select id from levels where levels.name = '副厅级'))) and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
+		*paramList = append(*paramList, zero, monthAgo(48), zero, monthAgo(48), zero)
+	case "willUp2x":
+		whereStr += " AND personnels.id not in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders < 2) and posts.position_id in (select id from positions where is_leader = 2))" +
+			" AND personnels.id in (select personnel_id from posts where posts.position_id in (select id from positions where positions.name = '一级调研员' ) and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
+		*paramList = append(*paramList, zero, monthAgo(48), zero, monthAgo(48), zero)
+	case "willUp1d":
+		whereStr += StrNotInPunish +
+			" AND personnels.id not in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders < 2) and posts.position_id in (select id from positions where is_leader = 1))" +
+			" AND personnels.id in (select personnel_id from posts where posts.position_id in (select id from positions where positions.name = '二级调研员' or (positions.is_leader = 2 and positions.level_id = (select id from levels where levels.name = '正处级'))) and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
+		*paramList = append(*paramList, now, zero, monthAgo(36), zero, monthAgo(36), zero)
+	}
+	return whereStr
 }
 
 func getBool(str string) int {

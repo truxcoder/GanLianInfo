@@ -98,7 +98,7 @@ personnels.sort desc nulls first`
 	//	return
 	//}
 	//result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Limit(size).Offset(offset).Find(&pd)
-	result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Find(&pd)
+	result = db.Debug().Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Find(&pd)
 
 	if result.Error != nil {
 		r = GetError(CodeServer)
@@ -392,16 +392,15 @@ func UpdateBirthday(c *gin.Context) {
 		c.JSON(200, r)
 		return
 	}
-	// 用dryRun模式生成sql语句
-	stmt := db.Session(&gorm.Session{DryRun: true}).Model(&models.Personnel{}).Where("id = ?", p.ID).Update("birthday", p.Birthday.Local()).Statement
-	//if result.Error != nil || result.RowsAffected == 0 {
-	//	r = GetError(CodeUpdate)
-	//	log.Error(result.Error)
-	//	c.JSON(200, r)
-	//	return
-	//}
-	// 解析语句为string
-	sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
+	//// 用dryRun模式生成sql语句
+	//stmt := db.Session(&gorm.Session{DryRun: true}).Model(&models.Personnel{}).Where("id = ?", p.ID).Update("birthday", p.Birthday.Local()).Statement
+	//// 解析语句为string
+	//sql := db.Dialector.Explain(stmt.SQL.String(), stmt.Vars...)
+
+	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&models.Personnel{}).Where("id = ?", p.ID).Update("birthday", p.Birthday.Local())
+	})
+	log.Successf("sql:%s\n", sql)
 	// 生成json内容
 	contentMap := map[string]string{
 		"table":  "personnels",
@@ -417,7 +416,9 @@ func UpdateBirthday(c *gin.Context) {
 	}
 	// 写入日志库
 	WriteLog(c, DangerUpdate, content)
-	db.Exec(sql)
+	//db.Debug().Exec(sql)
+	// 修改生日
+	db.Model(&models.Personnel{}).Where("id = ?", p.ID).Update("birthday", p.Birthday.Local())
 	r = gin.H{"code": 20000, "message": "人员生日更新成功!"}
 	c.JSON(200, r)
 }
