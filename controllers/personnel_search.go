@@ -111,7 +111,7 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		case "willRetireInTwoYear":
 			whereStr += " AND ((personnels.birthday <= ? and personnels.gender = '男') or (personnels.birthday <= ? and personnels.gender = '女'))"
 			paramList = append(paramList, yearsAgo(58), yearsAgo(53))
-		case "willUp1x", "willUp2x", "willUp1d", "willUp2d", "willUp3d", "willUp4d":
+		case "willUp1", "willUp2d", "willUp3d", "willUp4d", "willUp1z", "willUp2z", "willUp3z", "willUp4z", "willUp1k", "willUp1g", "willUp2g", "willUp3g", "willUp4g", "willUp1j", "willUp2j", "willUp3j", "willUp4j", "willUp1y":
 			whereStr += buildWillUpStr(&paramList, sm.Extra)
 		}
 
@@ -363,27 +363,53 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 }
 
 func buildWillUpStr(paramList *[]interface{}, extra string) (whereStr string) {
-	var zero time.Time
-	now := time.Now().Local()
-	StrNotInPunish := " AND personnels.id not in (select personnel_id from disciplines where disciplines.deadline > ?) "
-	switch extra {
-	case "willUp1x":
-		// 此处查询逻辑很绕。对于任职信息的判断有两种情况符合条件。
-		// 1，end_day为空，start_day小于指定日期。
-		// 2，end_day不为空，start_day小于指定日期。同时在posts表里能找到这样一条记录，
-		// 它的position_id等于当前记录的position_id，它的personnel_id等于当前记录的personnel_id，它的end_day为空。
-		whereStr += " AND personnels.id in (select personnel_id from posts where posts.position_id in (select id from positions where positions.name = '二级巡视员' or (positions.is_leader = 2 and positions.level_id = (select id from levels where levels.name = '副厅级'))) and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
-		*paramList = append(*paramList, zero, monthAgo(48), zero, monthAgo(48), zero)
-	case "willUp2x":
-		whereStr += " AND personnels.id not in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders < 2) and posts.position_id in (select id from positions where is_leader = 2))" +
-			" AND personnels.id in (select personnel_id from posts where posts.position_id in (select id from positions where positions.name = '一级调研员' ) and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
-		*paramList = append(*paramList, zero, monthAgo(48), zero, monthAgo(48), zero)
-	case "willUp1d":
-		whereStr += StrNotInPunish +
-			" AND personnels.id not in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders < 2) and posts.position_id in (select id from positions where is_leader = 1))" +
-			" AND personnels.id in (select personnel_id from posts where posts.position_id in (select id from positions where positions.name = '二级调研员' or (positions.is_leader = 2 and positions.level_id = (select id from levels where levels.name = '正处级'))) and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
-		*paramList = append(*paramList, now, zero, monthAgo(36), zero, monthAgo(36), zero)
+	//var zero time.Time
+	//var preRankMap = map[string]string{
+	//	"willUp2d": "一级调研员", "willUp3d": "四级调研员", "willUp4d": "一级主任科员", "willUp1z": "二级主任科员", "willUp2z": "三级主任科员",
+	//	"willUp3z": "四级主任科员", "willUp4z": "一级科员", "willUp1k": "二级科员", "willUp1j": "二级警长", "willUp2j": "三级警长",
+	//	"willUp3j": "四级警长", "willUp4j": "一级警员", "willUp1y": "二级警员",
+	//}
+	var preRankMap = map[string][]string{
+		"willUp2d": {"三级调研员", "三级高级警长"}, "willUp3d": {"四级调研员", "四级高级警长"}, "willUp4d": {"一级主任科员", "一级警长"}, "willUp1z": {"二级主任科员", "二级警长"}, "willUp2z": {"三级主任科员", "三级警长"},
+		"willUp3z": {"四级主任科员", "四级警长"}, "willUp4z": {"一级科员", "一级警员"}, "willUp1k": {"二级科员", "二级警员"}, "willUp1j": {"二级主任科员", "二级警长"}, "willUp2j": {"三级主任科员", "三级警长"},
+		"willUp3j": {"四级主任科员", "四级警长"}, "willUp4j": {"一级科员", "一级警员"}, "willUp1y": {"二级科员", "二级警员"},
 	}
+	var preLevelMap = map[string]string{
+		"willUp3d": "副处级", "willUp1z": "正科级", "willUp3z": "副科级", "willUp1j": "正科级", "willUp3j": "副科级",
+	}
+	//now := time.Now().Local()
+	//配偶子女移居国境外
+	whereStr += " AND personnels.id not in (select DISTINCT personnel_id from families where families.is_abroad = 1) "
+	//处分期未满
+	whereStr += " AND personnels.id not in (select personnel_id from disciplines where disciplines.deadline > CURDATE()) "
+	switch extra {
+	case "willUp2d", "willUp4d", "willUp2z", "willUp4z", "willUp1k":
+		whereStr += " AND personnels.organ_id in (select id from departments where short_name = '局机关')"
+		whereStr += " AND personnels.id in (select current_pos.id from current_pos where rank_name in ? and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE())"
+		*paramList = append(*paramList, preRankMap[extra])
+	case "willUp2j", "willUp4j", "willUp1y":
+		whereStr += " AND personnels.organ_id not in (select id from departments where short_name = '局机关')"
+		whereStr += " AND personnels.id in (select current_pos.id from current_pos where rank_name in ? and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE())"
+		*paramList = append(*paramList, preRankMap[extra])
+	case "willUp3d", "willUp1z", "willUp3z":
+		whereStr += " AND personnels.organ_id in (select id from departments where short_name = '局机关')"
+		whereStr += " AND personnels.id in (select current_pos.id from current_pos where rank_name in ? and (ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE() or (level_name = ? and ADD_MONTHS(level_start_day,(24 + level_add_month)) <= CURDATE())))"
+		*paramList = append(*paramList, preRankMap[extra], preLevelMap[extra])
+	case "willUp1j", "willUp3j":
+		whereStr += " AND personnels.organ_id not in (select id from departments where short_name = '局机关')"
+		whereStr += " AND personnels.id in (select current_pos.id from current_pos where rank_name in ? and (ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE() or (level_name = ? and ADD_MONTHS(level_start_day,(24 + level_add_month)) <= CURDATE())))"
+		*paramList = append(*paramList, preRankMap[extra], preLevelMap[extra])
+	case "willUp4g":
+		whereStr += " AND personnels.organ_id not in (select id from departments where short_name = '局机关')"
+		whereStr += " AND personnels.id in (select current_pos.id from current_pos,used_pos where rank_name in ('一级警长', '一级主任科员') and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE() and current_pos.id = used_pos.id AND ((level_name = '正科级' and ADD_MONTHS(level_start_day,5*12) <= CURDATE() and ADD_MONTHS(personnels.birthday, 43*12) <= CURDATE()) or (level_name = '副科级' and ADD_MONTHS(level_start_day,15*12) <= CURDATE() and ADD_MONTHS(personnels.birthday, 48*12) <= CURDATE()) or (ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),(15*12+IFNULL(fk_add_month, zk_add_month))) <= CURDATE() and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 55 else 50 end)*12) <= CURDATE()) or (level_name = '正科级' and ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),10*12) <= CURDATE() and ADD_MONTHS(personnels.birthday, 45*12) <= CURDATE()) or (level_name = '副科级' and ADD_MONTHS(fk_start_day,13*12) <= CURDATE() and ADD_MONTHS(personnels.birthday, 50*12) <= CURDATE()) or ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= CURDATE()))"
+	case "willUp3g":
+		whereStr += " AND personnels.organ_id not in (select id from departments where short_name = '局机关')"
+		whereStr += " AND personnels.id in (with fd_list as ( select id from personnels where ( ((ADD_MONTHS(IFNULL((select min(start_day) from posts where personnel_id = personnels.id and position_id = (select id from positions where name = '副调研员')),'3000-01-01 00:00:00.000000 +00:00' ),5*12)<= CURDATE()) and ADD_MONTHS(personnels.birthday, 50*12) <= CURDATE())))select personnels.id from personnels left join fd_list on fd_list.id = personnels.id where personnels.id in (select current_pos.id from current_pos,used_pos where rank_name in('四级高级警长', '四级调研员') and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE() and current_pos.id = used_pos.id AND (ADD_MONTHS(IFNULL(fc_start_day, '3000-01-01 00:00:00.000000 +00:00' ),(2*12+IFNULL(fc_add_month, 0))) <= CURDATE() or current_pos.id = fd_list.id or (level_name = '正科级' and ADD_MONTHS(level_start_day,10*12) <= CURDATE() and ADD_MONTHS(personnels.birthday, 50*12) <= CURDATE()) or (level_name = '正科级' and ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),15*12) <= CURDATE() and ADD_MONTHS(personnels.birthday, 50*12) <= CURDATE()) or (ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),(15*12+IFNULL(fk_add_month, zk_add_month))) <= CURDATE() and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= CURDATE()) or (ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),(20*12+IFNULL(fk_add_month, zk_add_month))) <= CURDATE() and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 55 else 50 end)*12) <= CURDATE()) or ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 59 else 54 end)*12) <= CURDATE() )))"
+	case "willUp2g":
+		whereStr += " AND personnels.organ_id not in (select id from departments where short_name = '局机关')"
+		whereStr += " AND personnels.id in (with fd_list as (select id from personnels where (((ADD_MONTHS(IFNULL((select min(start_day) from posts where personnel_id = personnels.id and position_id = (select id from positions where name = '副调研员')),'3000-01-01 00:00:00.000000 +00:00' ),8*12)<= CURDATE()) and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 55 else 50 end)*12) <= CURDATE()))) select personnels.id from personnels left join fd_list on fd_list.id = personnels.id where  personnels.id in (select current_pos.id from current_pos,used_pos where rank_name in('三级高级警长', '三级调研员') and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE() and current_pos.id = used_pos.id AND ((ADD_MONTHS(IFNULL(fc_start_day, '3000-01-01 00:00:00.000000 +00:00' ),(2*12+IFNULL(fc_add_month, 0))) <= CURDATE() and ADD_MONTHS(personnels.birthday, 48*12) <= CURDATE()) or current_pos.id = fd_list.id or (ADD_MONTHS(IFNULL(zk_start_day, '3000-01-01 00:00:00.000000 +00:00'),(15*12+IFNULL(zk_add_month, 0))) <= CURDATE() and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= CURDATE())\nor (ADD_MONTHS(IFNULL(zk_start_day, '3000-01-01 00:00:00.000000 +00:00'),(20*12+IFNULL(fk_add_month, zk_add_month))) <= CURDATE() and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= CURDATE()) or ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 59 else 54 end)*12) <= CURDATE())))"
+	}
+
 	return whereStr
 }
 

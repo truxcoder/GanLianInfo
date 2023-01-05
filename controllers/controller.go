@@ -97,6 +97,7 @@ func redisInit() {
 func casbinInit() {
 	var err error
 	var a *gormadapter.Adapter
+	gormadapter.TurnOffAutoMigrate(db)
 	a, err = gormadapter.NewAdapterByDB(db)
 	if err != nil {
 		log.Error(err)
@@ -105,6 +106,7 @@ func casbinInit() {
 	//path := filepath.Dir(dir)
 	//log.Infof("path:%s\n", dir)
 	model := filepath.Join(dir, "model.conf")
+
 	enforcer, err = casbin.NewEnforcer(model, a)
 	if err != nil {
 		log.Error(err)
@@ -156,8 +158,8 @@ func getPageData(c *gin.Context) (size int, offset int) {
 
 // buildWhere 根据查询参数构建where语句。
 //
-//可以查询organId，organIds，category和零值。零值查询需要前端在查询参数里传入一个key为zero，值为field_name$value_type的参数。
-//用$符号隔开。field_name:数据库字段名。value_type:数据类型，如time,int,string
+// 可以查询organId，organIds，category和零值。零值查询需要前端在查询参数里传入一个key为zero，值为field_name$value_type的参数。
+// 用$符号隔开。field_name:数据库字段名。value_type:数据类型，如time,int,string
 func buildWhere(c *gin.Context) (string, []interface{}) {
 	var result bytes.Buffer
 	var params []interface{}
@@ -311,7 +313,7 @@ func getDetail(c *gin.Context, table string, mos interface{}, selectStr *string,
 	c.JSON(200, r)
 }
 
-//如果查询结构体里有包含slice的字段，则将这些字段提取出来生成一个map返回，供gorm构建"IN"查询语句
+// 如果查询结构体里有包含slice的字段，则将这些字段提取出来生成一个map返回，供gorm构建"IN"查询语句
 func structToSlice(model interface{}) map[string]interface{} {
 	var result = make(map[string]interface{})
 	T := reflect.Indirect(reflect.ValueOf(model)).Type()

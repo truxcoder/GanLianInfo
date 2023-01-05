@@ -67,7 +67,7 @@ func PersonnelList(c *gin.Context) {
 (case when length(d.level_code)>=15 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,15)) else null end) desc, 
 personnels.sort desc nulls first`
 
-	selectStr := "personnels.id,personnels.name,personnels.police_code,personnels.gender,personnels.birthday,personnels.nation,personnels.political,personnels.status," +
+	selectStr := "personnels.id,personnels.name,personnels.police_code,personnels.gender,personnels.birthday,personnels.nation,personnels.political,personnels.status,personnels.current_rank,personnels.current_level," +
 		"d.short_name as department_short_name,o.short_name as organ_short_name"
 	//selectStr := "personnels.*,d.name as department_name,d.short_name as department_short_name," +
 	//	"o.name as organ_name,o.short_name as organ_short_name"
@@ -98,7 +98,7 @@ personnels.sort desc nulls first`
 	//	return
 	//}
 	//result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Limit(size).Offset(offset).Find(&pd)
-	result = db.Debug().Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Find(&pd)
+	result = db.Model(&models.Personnel{}).Select(selectStr).Joins(joinStr).Where(whereStr, paramList...).Order(sort).Find(&pd)
 
 	if result.Error != nil {
 		r = GetError(CodeServer)
@@ -175,7 +175,14 @@ personnels.sort desc nulls first`
 
 // PersonnelBaseList 基本信息列表，用于人员选择等
 func PersonnelBaseList(c *gin.Context) {
-	var p []PerDept
+	//var p []PerDept
+	var p []struct {
+		ID             string `json:"id"`
+		Name           string `json:"name" gorm:"size:50"`
+		PoliceCode     string `json:"policeCode"`
+		OrganName      string `json:"organName"`
+		OrganShortName string `json:"organShortName"`
+	}
 	var err error
 	var r gin.H
 	var result *gorm.DB
@@ -189,7 +196,7 @@ func PersonnelBaseList(c *gin.Context) {
 		return
 	}
 	canGlobal, _ := enforcer.Enforce(mo.AccountId, "Personnel", "GLOBAL")
-	selectStr := "personnels.*, departments.name as organ_name,departments.short_name as organ_short_name"
+	selectStr := "personnels.id, personnels.name, personnels.police_code, departments.name as organ_name,departments.short_name as organ_short_name"
 	joinStr := "left join departments on personnels.organ_id = departments.id"
 	if canGlobal {
 		result = db.Table("personnels").Select(selectStr).Joins(joinStr).Where("status = 1").Find(&p)

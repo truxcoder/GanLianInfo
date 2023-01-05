@@ -4,6 +4,7 @@ import (
 	"GanLianInfo/models"
 	"fmt"
 	"go/ast"
+	"gorm.io/gorm"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -129,18 +130,100 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	result := db.Delete(model, &id.Id)
-	err = result.Error
+	// 启用事务，确保所有操作都顺利执行
+	err = db.Transaction(func(tx *gorm.DB) error {
+		// 如果提交删除的是任职信息
+		if reflect.TypeOf(model) == reflect.TypeOf(&models.Post{}) {
+			if _err := parsePostDataBeforeDelete(tx, &id); _err != nil {
+				return _err
+			}
+		}
+
+		if _err := tx.Delete(model, &id.Id).Error; _err != nil {
+			// 返回任何错误都会回滚事务
+			return _err
+		}
+		// 返回 nil 提交事务
+		return nil
+	})
+
 	if err != nil {
+		r = gin.H{"message": err.Error(), "code": 50500}
 		log.Error(err)
-		//r = Errors.ServerError
-		r = GetError(CodeServer)
-	} else {
-		message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
-		r = gin.H{"message": message, "code": 20000}
+		c.JSON(200, r)
+		return
 	}
+	message := fmt.Sprintf("成功删除%d条数据", len(id.Id))
+	r = gin.H{"message": message, "code": 20000}
 	c.JSON(200, r)
-	return
+
+	//result := db.Delete(model, &id.Id)
+	//err = result.Error
+	//if err != nil {
+	//	r = GetError(CodeServer)
+	//} else {
+	//	message := fmt.Sprintf("成功删除%d条数据", result.RowsAffected)
+	//	r = gin.H{"message": message, "code": 20000}
+	//}
+	//c.JSON(200, r)
+	//return
+}
+
+// 在删除任职信息前用事务同步处理当前职务和当前职级。逻辑是：
+// 循环要删除的人员id，判断要删除的信息的结束日期是否为零值。如果不是，则不做处理，如果是，则判断是职务还是职级
+// 如果是职务，则判断该人员是否还有未结束任期的职务，有则把current_level改为未结束任期的最高职务，无则把current_level置为null
+// 如果是职级，则直接将current_rank置为null
+func parsePostDataBeforeDelete(tx *gorm.DB, i *IdStruct) error {
+	var (
+		post      models.Post
+		existPost []PostWithLevel
+		position  models.Position
+	)
+	zeroDate := "0001-01-01 00:00:00.000000 +00:00"
+
+	// 循环要删除的人员id，判断要删除的信息的结束日期是否为零值。如果不是，则不做处理，如果是，则同步处理人员的current_level和current_rank
+	for _, id := range i.Id {
+		if err := tx.Limit(1).Find(&post, id).Error; err != nil {
+			return err
+		}
+		if post.EndDay.IsZero() {
+			if err := tx.Limit(1).Find(&position, post.PositionId).Error; err != nil {
+				return err
+			}
+			// 如果提交的是领导职务
+			if position.IsLeader == 2 {
+				//判断该人员是否还有未结束任期的职务，有则把current_level改为未结束任期的最高职务，无则把current_level置为null
+				if err := tx.Model(&models.Post{}).Select("posts.*, levels.name level_name, levels.orders level_order").Joins("left join levels on levels.id = posts.level_id").Where("personnel_id = ? and end_day = ? and position_id in (select id from positions where is_leader = 2)", post.PersonnelId, zeroDate).Find(&existPost).Error; err != nil {
+					return err
+				}
+				if len(existPost) == 1 {
+					if err := tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_level", nil).Error; err != nil {
+						return err
+					}
+				} else {
+					_order := 100
+					var _levelId int64
+					// 循环判断出级别最高任职信息，取出其id
+					for _, v := range existPost {
+						if v.LevelOrder < _order && v.ID != id {
+							_levelId = v.LevelId
+						}
+					}
+					if _levelId != 0 {
+						if err := tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_level", _levelId).Error; err != nil {
+							return err
+						}
+					}
+				}
+				// 如果提交的是非领导职务，则直接将current_rank置为null
+			} else if position.IsLeader == 1 {
+				if err := tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_rank", nil).Error; err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // PreEdit 提交审核

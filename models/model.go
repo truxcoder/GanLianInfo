@@ -83,6 +83,8 @@ type Personnel struct {
 	DataStatus              int8      `json:"dataStatus"`
 	Sort                    int       `json:"sort"`
 	Status                  bool      `json:"status"`
+	CurrentRank             int64     `json:"currentRank"`
+	CurrentLevel            int64     `json:"currentLevel"`
 	CreateTime              time.Time `json:"createTime"`
 	UpdateTime              time.Time `json:"updateTime"`
 }

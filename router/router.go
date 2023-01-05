@@ -106,7 +106,9 @@ func Register() *gin.Engine {
 	post := router.Group("post", authMiddleware)
 	{
 		post.POST("list", controllers.PostList)
-		post.POST("/detail", controllers.PostDetail)
+		post.POST("detail", controllers.PostDetail)
+		post.POST("add", controllers.PostAdd)
+		post.POST("update", controllers.PostUpdate)
 	}
 	position := router.Group("position", authMiddleware)
 	{
