@@ -5,8 +5,8 @@ import (
 	"GanLianInfo/utils"
 	"time"
 
-	"github.com/Insua/gorm-dm8/datatype"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/truxcoder/gorm-dm8/datatype"
 
 	log "github.com/truxcoder/truxlog"
 

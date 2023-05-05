@@ -46,6 +46,7 @@ var (
 var orderMap = map[string]string{
 	"appraisals": "years,season",
 	"accounts":   accountOrder,
+	"leaders":    "organ_id,sort",
 }
 
 var detailOrderMap = map[string]string{

@@ -3,8 +3,8 @@ package controllers
 import (
 	"GanLianInfo/models"
 
-	"github.com/Insua/gorm-dm8/datatype"
 	"github.com/gin-gonic/gin"
+	"github.com/truxcoder/gorm-dm8/datatype"
 )
 
 type Affair struct {

@@ -8,9 +8,8 @@ import (
 	"github.com/go-redis/redis/v8"
 
 	"github.com/ilyakaznacheev/cleanenv"
+	dm8 "github.com/truxcoder/gorm-dm8"
 	log "github.com/truxcoder/truxlog"
-
-	dm8 "github.com/Insua/gorm-dm8"
 	"gorm.io/gorm"
 )
 

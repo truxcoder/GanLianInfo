@@ -4,7 +4,7 @@ import (
 	"GanLianInfo/models"
 	"strconv"
 
-	"github.com/Insua/gorm-dm8/datatype"
+	"github.com/truxcoder/gorm-dm8/datatype"
 
 	log "github.com/truxcoder/truxlog"
 

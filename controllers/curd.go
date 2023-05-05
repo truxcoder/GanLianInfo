@@ -40,6 +40,7 @@ func init() {
 	maps["review"] = reflect.TypeOf(models.Review{})
 	maps["feedback"] = reflect.TypeOf(models.Feedback{})
 	maps["appointment"] = reflect.TypeOf(models.Appointment{})
+	maps["leader"] = reflect.TypeOf(models.Leader{})
 }
 
 func Add(c *gin.Context) {

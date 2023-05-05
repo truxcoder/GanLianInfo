@@ -4,7 +4,7 @@ import (
 	"GanLianInfo/utils"
 	"time"
 
-	"github.com/Insua/gorm-dm8/datatype"
+	"github.com/truxcoder/gorm-dm8/datatype"
 
 	"gorm.io/gorm"
 )
@@ -350,6 +350,18 @@ type TalentPick struct {
 	Title    string        `json:"title"`
 	PickDate time.Time     `json:"pickDate"`
 	Res      datatype.Clob `json:"res"`
+}
+
+// Leader 班子表
+type Leader struct {
+	BaseId
+	PersonnelId int64  `json:"personnelId,string"`
+	OrganID     string `json:"organId"`
+	PositionId  int64  `json:"positionId,string"`
+	IsChief     int8   `json:"isChief"`
+	IsBoss      int8   `json:"isBoss"`
+	Remark      string `json:"remark" update:"remark"`
+	Sort        int16  `json:"sort"`
 }
 
 // Custom 用户自定义查询表

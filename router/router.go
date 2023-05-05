@@ -225,6 +225,11 @@ func Register() *gin.Engine {
 	analysis := router.Group("analysis", authMiddleware)
 	{
 		analysis.POST("police", controllers.AnalysisPoliceTeamData)
+		analysis.POST("leader", controllers.AnalysisLeaderTeamData)
+	}
+	leader := router.Group("leader", authMiddleware)
+	{
+		leader.POST("list", controllers.LeaderList)
 	}
 	talent := router.Group("talent", authMiddleware)
 	{

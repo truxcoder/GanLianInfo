@@ -83,13 +83,20 @@ func AccountSure(c *gin.Context) {
 	var r gin.H
 	method := c.Query("method")
 	var a []Account
-	if method != "delete" {
-		if err := c.ShouldBindJSON(&a); err != nil {
-			log.Error(err)
-			r = GetError(CodeBind)
-			c.JSON(200, r)
-			return
-		}
+	//if method != "delete" {
+	//	if err := c.ShouldBindJSON(&a); err != nil {
+	//		log.Error(err)
+	//		r = GetError(CodeBind)
+	//		c.JSON(200, r)
+	//		return
+	//	}
+	//}
+
+	if err := c.ShouldBindJSON(&a); err != nil {
+		log.Error(err)
+		r = GetError(CodeBind)
+		c.JSON(200, r)
+		return
 	}
 	if method == "add" {
 		if result := db.Table("accounts").Create(a); result.Error != nil {
@@ -111,16 +118,22 @@ func AccountSure(c *gin.Context) {
 		return
 	}
 	if method == "delete" {
-		var id struct {
-			Id []string `json:"id"`
+		//var id struct {
+		//	Id []string `json:"id"`
+		//}
+		//if err := c.ShouldBindJSON(&id); err != nil {
+		//	log.Error(err)
+		//	r = GetError(CodeBind)
+		//	c.JSON(200, r)
+		//	return
+		//}
+
+		var ids []string
+		for _, v := range a {
+			ids = append(ids, v.ID)
 		}
-		if err := c.ShouldBindJSON(&id); err != nil {
-			log.Error(err)
-			r = GetError(CodeBind)
-			c.JSON(200, r)
-			return
-		}
-		db.Where("id_code in ?", &id.Id).Delete(models.Account{})
+		//db.Where("id in ?", &ids).Delete(models.Account{})
+		db.Delete(models.Account{}, &ids)
 		r = gin.H{"code": 20000, "message": "删除成功!"}
 		c.JSON(200, r)
 		return

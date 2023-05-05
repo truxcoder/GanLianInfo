@@ -5,7 +5,6 @@ go 1.17
 //replace faker => ../faker
 
 require (
-	github.com/Insua/gorm-dm8 v1.0.13
 	github.com/Masterminds/squirrel v1.5.2
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/casbin/casbin/v2 v2.57.0
@@ -17,13 +16,13 @@ require (
 	github.com/ilyakaznacheev/cleanenv v1.2.6
 	github.com/json-iterator/go v1.1.12
 	github.com/pkg/errors v0.8.1
+	github.com/truxcoder/gorm-dm8 v0.0.2
 	github.com/truxcoder/truxlog v0.0.0-20211030060339-5dcf132dff44
 	gorm.io/gorm v1.24.1
 )
 
 require (
 	github.com/BurntSushi/toml v0.4.1 // indirect
-	github.com/Insua/dm v0.0.5 // indirect
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -60,6 +59,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/thoas/go-funk v0.8.0 // indirect
+	github.com/truxcoder/dm v0.0.8 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b // indirect
 	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
