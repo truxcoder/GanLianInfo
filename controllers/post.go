@@ -93,6 +93,7 @@ func PostAdd(c *gin.Context) {
 			// 如果提交的是领导职务
 			if position.IsLeader == 2 {
 				// 先查找现有职务，对比现有职务的新提交的职务的高低
+
 				if _err := tx.Limit(1).Find(&currentLevel, p.CurrentLevel).Error; _err != nil {
 					return _err
 				}
@@ -173,6 +174,7 @@ func PostUpdate(c *gin.Context) {
 				// 如果提交的是领导职务
 				if position.IsLeader == 2 {
 					//判断该人员是否还有未结束任期的职务，有则把current_level改为未结束任期的最高职务，无则把current_level置为null
+
 					if _err := tx.Model(&models.Post{}).Select("posts.*, levels.name level_name, levels.orders level_order").Joins("left join levels on levels.id = posts.level_id").Where("personnel_id = ? and end_day = ? and position_id in (select id from positions where is_leader = 2)", model.PersonnelId, zeroDate).Find(&existPost).Error; _err != nil {
 						return _err
 					}
@@ -203,18 +205,42 @@ func PostUpdate(c *gin.Context) {
 				}
 			}
 		} else {
-
 			// 如果提交的是领导职务
 			if position.IsLeader == 2 {
 				// 先查找现有职务，对比现有职务的新提交的职务的高低
-				if _err := tx.Limit(1).Find(&currentLevel, p.CurrentLevel).Error; _err != nil {
+				var _err error
+				var highestPosts []PostWithLevel //人员现任实职post按级别从高到低排列列表
+				if _err = tx.Limit(1).Find(&currentLevel, p.CurrentLevel).Error; _err != nil {
 					return _err
 				}
-				if _err := tx.Limit(1).Find(&newLevel, model.LevelId).Error; _err != nil {
+				if _err = tx.Limit(1).Find(&newLevel, model.LevelId).Error; _err != nil {
 					return _err
 				}
-				if currentLevel.Orders == 0 || currentLevel.Orders > newLevel.Orders {
-					if _err := tx.Model(&models.Personnel{}).Where("id = ?", model.PersonnelId).Update("current_level", model.LevelId).Error; _err != nil {
+				// 搜索得到人员现任实职post按级别从高到低排列列表
+				if highestPosts, _err = getHighestPosts(tx, p.ID); _err != nil {
+					return _err
+				}
+				// 以下几种情况更新人员的current_level为当前提交的post的levelId
+				// 1,人员的current_level为空。2，新提交的level排序比当前current_level排序高。
+				// 3，虽然新提交的level排序比当前current_level排序低，但是实际上搜索不到现在有任何实职任职信息
+				if currentLevel.Orders == 0 || currentLevel.Orders > newLevel.Orders || (currentLevel.Orders < newLevel.Orders && len(highestPosts) == 0) {
+					if _err = tx.Model(&models.Personnel{}).Where("id = ?", model.PersonnelId).Update("current_level", model.LevelId).Error; _err != nil {
+						return _err
+					}
+				}
+				// 如果搜索出来的实职信息不止一条。新提交的level排序比当前current_level排序低。但是新提交的post就是level排序最高的那条post
+				// 则看一共有多少条实职信息，如果只有唯一一条，则证明是把唯一的这条实职信息level改低。就取新值。
+				// 如果不只一条。第二条信息的level排序更高。则取第二物权法的levelId值。否则就还是取新值
+				if len(highestPosts) > 0 && currentLevel.Orders < newLevel.Orders && model.ID == highestPosts[0].ID {
+					var _id int64
+					if len(highestPosts) == 1 {
+						_id = model.LevelId
+					} else if highestPosts[1].LevelOrder < newLevel.Orders {
+						_id = highestPosts[1].LevelId
+					} else {
+						_id = model.LevelId
+					}
+					if _err = tx.Model(&models.Personnel{}).Where("id = ?", model.PersonnelId).Update("current_level", _id).Error; _err != nil {
 						return _err
 					}
 				}
@@ -249,4 +275,11 @@ func PostUpdate(c *gin.Context) {
 	updateZeroFields(&model)
 	r = gin.H{"message": "更新成功！", "code": 20000}
 	c.JSON(200, r)
+}
+
+// 得到人员现任实职post按级别从高到低排列列表
+func getHighestPosts(tx *gorm.DB, personnelId int64) (post []PostWithLevel, err error) {
+	zeroDate := "0001-01-01 00:00:00.000000 +00:00"
+	err = tx.Model(&models.Post{}).Select("posts.*, levels.name level_name, levels.orders level_order").Joins("left join levels on levels.id = posts.level_id").Where("personnel_id = ? and end_day = ? and position_id in (select id from positions where is_leader = 2)", personnelId, zeroDate).Order("level_order").Find(&post).Error
+	return
 }

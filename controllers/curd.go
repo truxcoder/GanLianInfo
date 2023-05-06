@@ -179,46 +179,63 @@ func parsePostDataBeforeDelete(tx *gorm.DB, i *IdStruct) error {
 		post      models.Post
 		existPost []PostWithLevel
 		position  models.Position
+		err       error
 	)
-	zeroDate := "0001-01-01 00:00:00.000000 +00:00"
+	//zeroDate := "0001-01-01 00:00:00.000000 +00:00"
 
 	// 循环要删除的人员id，判断要删除的信息的结束日期是否为零值。如果不是，则不做处理，如果是，则同步处理人员的current_level和current_rank
 	for _, id := range i.Id {
-		if err := tx.Limit(1).Find(&post, id).Error; err != nil {
+		if err = tx.Limit(1).Find(&post, id).Error; err != nil {
 			return err
 		}
 		if post.EndDay.IsZero() {
-			if err := tx.Limit(1).Find(&position, post.PositionId).Error; err != nil {
+			if err = tx.Limit(1).Find(&position, post.PositionId).Error; err != nil {
 				return err
 			}
 			// 如果提交的是领导职务
 			if position.IsLeader == 2 {
 				//判断该人员是否还有未结束任期的职务，有则把current_level改为未结束任期的最高职务，无则把current_level置为null
-				if err := tx.Model(&models.Post{}).Select("posts.*, levels.name level_name, levels.orders level_order").Joins("left join levels on levels.id = posts.level_id").Where("personnel_id = ? and end_day = ? and position_id in (select id from positions where is_leader = 2)", post.PersonnelId, zeroDate).Find(&existPost).Error; err != nil {
+				//if err = tx.Model(&models.Post{}).Select("posts.*, levels.name level_name, levels.orders level_order").Joins("left join levels on levels.id = posts.level_id").Where("personnel_id = ? and end_day = ? and position_id in (select id from positions where is_leader = 2)", post.PersonnelId, zeroDate).Find(&existPost).Error; err != nil {
+				//	return err
+				//}
+				// 搜索得到人员现任实职post按级别从高到低排列列表
+				if existPost, err = getHighestPosts(tx, post.PersonnelId); err != nil {
 					return err
 				}
-				if len(existPost) == 1 {
-					if err := tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_level", nil).Error; err != nil {
+				if len(existPost) == 0 {
+					return errors.New("删除实职信息时未搜索到已有实职信息")
+				} else if len(existPost) == 1 {
+					if err = tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_level", nil).Error; err != nil {
 						return err
 					}
 				} else {
-					_order := 100
-					var _levelId int64
-					// 循环判断出级别最高任职信息，取出其id
-					for _, v := range existPost {
-						if v.LevelOrder < _order && v.ID != id {
-							_levelId = v.LevelId
-						}
+					var levelId int64
+					if existPost[0].ID == id {
+						levelId = existPost[1].LevelId
+					} else {
+						levelId = existPost[0].LevelId
 					}
-					if _levelId != 0 {
-						if err := tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_level", _levelId).Error; err != nil {
-							return err
-						}
+					if err = tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_level", levelId).Error; err != nil {
+						return err
 					}
+					//_order := 100
+					//var _levelId int64
+					//// 循环判断出级别最高任职信息，取出其id
+					//for _, v := range existPost {
+					//	if v.LevelOrder < _order && v.ID != id {
+					//		_levelId = v.LevelId
+					//	}
+					//}
+					//if _levelId != 0 {
+					//	if err = tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_level", _levelId).Error; err != nil {
+					//		return err
+					//	}
+					//}
 				}
+
 				// 如果提交的是非领导职务，则直接将current_rank置为null
 			} else if position.IsLeader == 1 {
-				if err := tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_rank", nil).Error; err != nil {
+				if err = tx.Model(&models.Personnel{}).Where("id = ?", post.PersonnelId).Update("current_rank", nil).Error; err != nil {
 					return err
 				}
 			}
