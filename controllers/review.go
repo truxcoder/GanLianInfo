@@ -203,7 +203,7 @@ func ReviewPass(c *gin.Context) {
 				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
 					return _err
 				}
-				if _err := tx.Debug().Delete(_data).Error; _err != nil {
+				if _err := tx.Delete(_data).Error; _err != nil {
 					return _err
 				}
 				return nil
@@ -211,11 +211,10 @@ func ReviewPass(c *gin.Context) {
 		}
 		if content.Action == "add" {
 			err = db.Transaction(func(tx *gorm.DB) error {
-				log.Successf("_data:%+v\n", reflect.TypeOf(_data).String())
 				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
 					return _err
 				}
-				if _err := tx.Debug().Create(_data).Error; _err != nil {
+				if _err := tx.Create(_data).Error; _err != nil {
 					return _err
 				}
 				return nil
@@ -224,14 +223,14 @@ func ReviewPass(c *gin.Context) {
 
 		if content.Action == "update" {
 			err = db.Transaction(func(tx *gorm.DB) error {
-				if _err := tx.Debug().Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
 					return _err
 				}
-				if _err := tx.Debug().Updates(_data).Error; _err != nil {
+				if _err := tx.Updates(_data).Error; _err != nil {
 					return _err
 				}
 				if res, t := updateZeroFieldsToMap(_data); t > 0 {
-					if _err := tx.Debug().Model(_mo).Updates(res).Error; _err != nil {
+					if _err := tx.Model(_mo).Updates(res).Error; _err != nil {
 						return _err
 					}
 				}
@@ -261,7 +260,7 @@ func ReviewPass(c *gin.Context) {
 				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
 					return _err
 				}
-				if _err := tx.Debug().Delete(&_mo).Error; _err != nil {
+				if _err := tx.Delete(&_mo).Error; _err != nil {
 					return _err
 				}
 				return nil
@@ -282,7 +281,7 @@ func ReviewPass(c *gin.Context) {
 				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
 					return _err
 				}
-				if _err := tx.Debug().Create(&_mo.Report).Error; _err != nil {
+				if _err := tx.Create(&_mo.Report).Error; _err != nil {
 					return _err
 				}
 				return nil
@@ -314,10 +313,10 @@ func ReviewPass(c *gin.Context) {
 				return
 			}
 			err = db.Transaction(func(tx *gorm.DB) error {
-				if _err := tx.Debug().Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
+				if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
 					return _err
 				}
-				if _err := tx.Debug().Updates(&_mo.Report).Error; _err != nil {
+				if _err := tx.Updates(&_mo.Report).Error; _err != nil {
 					return _err
 				}
 				id := _mo.Report.ID

@@ -464,7 +464,7 @@ func AnalysisLeaderTeamData(c *gin.Context) {
 		"d.name as organ_name, d.short_name as organ_short_name"
 	joinStr := "left join personnels as per on leaders.personnel_id = per.id " +
 		"left join departments as d on leaders.organ_id = d.id "
-	result := db.Table("leaders").Select(selectStr).Joins(joinStr).Find(&ld)
+	result := db.Table("leaders").Select(selectStr).Joins(joinStr).Order("organ_id, sort").Find(&ld)
 	err = result.Error
 	if err != nil {
 		r = GetError(CodeServer)
