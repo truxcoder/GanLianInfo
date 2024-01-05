@@ -94,8 +94,8 @@ type Department struct {
 	ID          string `json:"id" gorm:"size:50;primaryKey"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	Name        string    `json:"name" gorm:"size:50;not Null"`
-	ShortName   string    `json:"shortName" gorm:"size:50"`
+	Name        string    `json:"name" gorm:"not Null"`
+	ShortName   string    `json:"shortName"`
 	DeptType    int       `json:"deptType"`
 	DataStatus  int       `json:"dataStatus"`
 	Code        string    `json:"code"`

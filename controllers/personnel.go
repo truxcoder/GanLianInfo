@@ -407,7 +407,7 @@ func UpdateBirthday(c *gin.Context) {
 	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		return tx.Model(&models.Personnel{}).Where("id = ?", p.ID).Update("birthday", p.Birthday.Local())
 	})
-	log.Successf("sql:%s\n", sql)
+	//log.Successf("sql:%s\n", sql)
 	// 生成json内容
 	contentMap := map[string]string{
 		"table":  "personnels",

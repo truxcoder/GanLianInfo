@@ -204,7 +204,7 @@ func ReportUpdate(c *gin.Context) {
 			_v, _ := strconv.Atoi(v)
 			_del = append(_del, int64(_v))
 		}
-		log.Successf("_del: %v\n", _del)
+		//log.Successf("_del: %v\n", _del)
 		result := db.Where("report_id = ? and personnel_id in ?", id, _del).Delete(models.PersonReport{})
 		err = result.Error
 		if err != nil {

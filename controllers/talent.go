@@ -48,7 +48,7 @@ func TalentAdd(c *gin.Context) {
 		return
 	}
 	if db.Table("talents").Where("personnel_id = ? AND category = ?", mo.PersonnelId, mo.Category).Count(&count); count > 0 {
-		log.Successf("count:%d\n", count)
+		//log.Successf("count:%d\n", count)
 		r = gin.H{"code": 503, "message": "系统内已存在该人员信息，请勿重复添加！"}
 		c.JSON(200, r)
 		return

@@ -304,7 +304,7 @@ func DataSure(c *gin.Context) {
 	}
 	if method == "update" {
 		for _, v := range p {
-			log.Successf("v:%+v\n", v)
+			//log.Successf("v:%+v\n", v)
 			db.Table("personnels").Omit("birthday").Where("id = ?", v.ID).Updates(&v)
 		}
 		r = gin.H{"code": 20000, "message": "更新成功!"}
@@ -394,7 +394,7 @@ func DepartmentSure(c *gin.Context) {
 	}
 	if method == "update" {
 		for _, v := range d {
-			log.Successf("v:%+v\n", v)
+			//log.Successf("v:%+v\n", v)
 			db.Table("departments").Where("id = ?", v.ID).Updates(&v)
 		}
 		setDepartmentMap()
@@ -435,7 +435,7 @@ func GetPersonnelDataFromInterface() []byte {
 				log.Error(err)
 			} else {
 				baseTime = updateTime
-				log.Successf("baseTime:%v\n", baseTime)
+				//log.Successf("baseTime:%v\n", baseTime)
 			}
 		}
 	}
@@ -468,7 +468,7 @@ func GetPersonnelDataFromInterfaceForAccount() []byte {
 				log.Error(err)
 			} else {
 				baseTime = updateTime
-				log.Successf("GetPersonnelDataFromInterfaceForAccount baseTime:%v\n", baseTime)
+				//log.Successf("GetPersonnelDataFromInterfaceForAccount baseTime:%v\n", baseTime)
 			}
 		}
 	}

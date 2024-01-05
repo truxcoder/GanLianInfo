@@ -110,7 +110,7 @@ func AccountSure(c *gin.Context) {
 	}
 	if method == "update" {
 		for _, v := range a {
-			log.Successf("v:%+v\n", v)
+			//log.Successf("v:%+v\n", v)
 			db.Table("accounts").Where("id = ?", v.ID).Updates(&v)
 		}
 		r = gin.H{"code": 20000, "message": "更新成功!"}

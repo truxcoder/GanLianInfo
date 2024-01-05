@@ -83,8 +83,8 @@ func ReviewPass(c *gin.Context) {
 			return
 		}
 
-		log.Successf("dataMap-----------:\n %+v\n", dataMap)
-		log.Successf("mo-----------:\n %+v\n", mo)
+		//log.Successf("dataMap-----------:\n %+v\n", dataMap)
+		//log.Successf("mo-----------:\n %+v\n", mo)
 		// 启用事务，确保所有操作都顺利执行
 		err = db.Transaction(func(tx *gorm.DB) error {
 			if _err := tx.Model(&models.Review{}).Where("id = ?", mo.ID).Updates(reviewMap).Error; _err != nil {
