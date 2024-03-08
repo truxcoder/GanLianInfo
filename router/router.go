@@ -3,11 +3,14 @@ package router
 import (
 	"GanLianInfo/auth"
 	"GanLianInfo/controllers"
+	"GanLianInfo/utils"
 	"context"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -28,6 +31,10 @@ func genDB() gin.HandlerFunc {
 
 func Register() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
+	gin.DisableConsoleColor()
+	file := filepath.Join(utils.GetCurrentAbPath(), "ganbu.log")
+	f, _ := os.Create(file)
+	gin.DefaultWriter = io.MultiWriter(f)
 	authMiddleware := auth.JWTAuthMiddleware()
 	//router := gin.Default()
 	// 新建一个没有任何默认中间件的路由

@@ -101,12 +101,15 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 			// 1，end_day为空，start_day小于指定日期。
 			// 2，end_day不为空，start_day小于指定日期。同时在posts表里能找到这样一条记录，
 			// 它的position_id等于当前记录的position_id，它的personnel_id等于当前记录的personnel_id，它的end_day为空。
-			whereStr += " AND personnels.id in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders > 3) and posts.position_id in (select id from positions where is_leader = 1 and positions.name <> '一级警长') and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
-			paramList = append(paramList, zero, monthAgo(18), zero, monthAgo(18), zero)
+			//whereStr += " AND personnels.id in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders > 3) and posts.position_id in (select id from positions where is_leader = 1 and positions.name <> '一级警长') and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
+			whereStr += willUpInSixMonth
+			//paramList = append(paramList, zero, monthAgo(18), zero, monthAgo(18), zero)
+			paramList = append(paramList, monthAgo(18))
 		case "willUpInThreeMonth":
 			//whereStr += " AND personnels.id in (select personnel_id from posts where posts.level_id in (select id from levels where levels.orders > 3) and posts.position_id in (select id from positions where is_leader = 1 and positions.name <> '一级警长') and ((posts.end_day = ? and posts.start_day <= ?) or (posts.end_day <> ? and posts.start_day<= ? and exists (select * from posts as po where po.position_id = posts.position_id and po.personnel_id = posts.personnel_id and po.end_day = ?))))"
 			whereStr += willUpInThreeMonth
-			paramList = append(paramList, zero, monthAgo(21), zero, monthAgo(21), zero)
+			//paramList = append(paramList, zero, monthAgo(21), zero, monthAgo(21), zero)
+			paramList = append(paramList, monthAgo(21))
 		case "willRetireInTwoYear":
 			whereStr += " AND ((personnels.birthday <= ? and personnels.gender = '男') or (personnels.birthday <= ? and personnels.gender = '女'))"
 			paramList = append(paramList, yearsAgo(58), yearsAgo(53))
@@ -343,7 +346,11 @@ func makeWhere(sm *SearchMod) (string, []interface{}) {
 		sql, args, _ := stmt.ToSql()
 		//log.Successf("sql:%s\nargs:%v\n", sql, args)
 		whereStr += " AND personnels.id in (" + sql + ")"
-		paramList = append(paramList, args)
+		// 对空参数进行判断，如果不传参数，则不加入参数列表。
+		if len(args) != 0 {
+			paramList = append(paramList, args)
+		}
+
 	}
 	if len(sm.TwoPost) > 0 {
 		var leaderList []int64

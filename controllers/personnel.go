@@ -81,6 +81,7 @@ personnels.sort desc nulls first`
 		return
 	}
 	whereStr, paramList = makeWhere(&sm)
+	//log.Successf("whereStr: %+v\n, paramList: %+v\n", whereStr, paramList)
 
 	//page, _ := strconv.Atoi(currenPage)
 	//size, _ := strconv.Atoi(pageSize)
