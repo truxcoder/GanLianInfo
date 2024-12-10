@@ -2,9 +2,11 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -103,4 +105,43 @@ func StructToMap(in interface{}) (map[string]interface{}, error) {
 		}
 	}
 	return out, nil
+}
+
+// GetEarliestDay 获取最早日期
+func GetEarliestDay(days ...time.Time) (earliestDay time.Time) {
+	earliestDay = days[0]
+	for _, day := range days {
+		if day.Before(earliestDay) {
+			earliestDay = day
+		}
+	}
+	return earliestDay
+}
+
+// GetLatestDay 获取最晚日期
+func GetLatestDay(days ...time.Time) (latestDay time.Time) {
+	latestDay = days[0]
+	for _, day := range days {
+		if day.After(latestDay) {
+			latestDay = day
+		}
+	}
+	return latestDay
+}
+
+// IsDevEnv 是否为开发环境
+func IsDevEnv() bool {
+	var (
+		exePath string
+		err     error
+	)
+
+	if exePath, err = os.Executable(); err != nil {
+		fmt.Printf("getting executable path failed: %v", err)
+		return false
+	}
+	if strings.Contains(exePath, "tmp") {
+		return true
+	}
+	return false
 }

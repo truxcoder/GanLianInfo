@@ -896,3 +896,24 @@ func genLeaderPost(postMap map[string]map[string]int, cl []currentLevel) {
 	}
 
 }
+
+func buildHighLevelStr(paramList *[]interface{}, level string, date time.Time) (whereStr string) {
+	//var zero time.Time
+	//now := time.Now().Local()
+
+	//处分期未满
+	//whereStr += " AND personnels.id not in (select personnel_id from disciplines where disciplines.deadline > CURDATE()) "
+
+	switch level {
+	case "g4":
+		whereStr += " AND exists (select current_pos.id from current_pos,used_pos where current_pos.id = personnels.id and used_pos.id = personnels.id and rank_name in ('一级警长', '一级主任科员') and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= ?  AND ((level_name = '正科级' and ADD_MONTHS(level_start_day,5*12) <= ? and ADD_MONTHS(personnels.birthday, 43*12) <= ?) or (level_name = '副科级' and ADD_MONTHS(level_start_day,15*12) <= ? and ADD_MONTHS(personnels.birthday, 48*12) <= ?) or (ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),(15*12+IFNULL(fk_add_month, zk_add_month))) <= ? and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 55 else 50 end)*12) <= ?) or (level_name = '正科级' and ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),10*12) <= ? and ADD_MONTHS(personnels.birthday, 45*12) <= ?) or (level_name = '副科级' and ADD_MONTHS(fk_start_day,13*12) <= ? and ADD_MONTHS(personnels.birthday, 50*12) <= ?) or ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= ?))"
+		*paramList = append(*paramList, date, date, date, date, date, date, date, date, date, date, date, date)
+	case "g3":
+		whereStr += " AND personnels.id in (with fd_list as ( select id from personnels where ( ((ADD_MONTHS(IFNULL((select min(start_day) from posts where personnel_id = personnels.id and position_id = (select id from positions where name = '副调研员')),'3000-01-01 00:00:00.000000 +00:00' ),5*12)<= ?) and ADD_MONTHS(personnels.birthday, 50*12) <= ?)))select personnels.id from personnels left join fd_list on fd_list.id = personnels.id where personnels.id in (select current_pos.id from current_pos,used_pos where rank_name in('四级高级警长', '四级调研员') and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= ? and current_pos.id = used_pos.id AND (ADD_MONTHS(IFNULL(fc_start_day, '3000-01-01 00:00:00.000000 +00:00' ),(2*12+IFNULL(fc_add_month, 0))) <= ? or current_pos.id = fd_list.id or (level_name = '正科级' and ADD_MONTHS(level_start_day,10*12) <= ? and ADD_MONTHS(personnels.birthday, 50*12) <= ?) or (level_name = '正科级' and ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),15*12) <= ? and ADD_MONTHS(personnels.birthday, 50*12) <= ?) or (ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),(15*12+IFNULL(fk_add_month, zk_add_month))) <= ? and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= ?) or (ADD_MONTHS(IFNULL(fk_start_day, zk_start_day),(20*12+IFNULL(fk_add_month, zk_add_month))) <= ? and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 55 else 50 end)*12) <= ?) or ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 59 else 54 end)*12) <= ? )))"
+		*paramList = append(*paramList, date, date, date, date, date, date, date, date, date, date, date, date, date)
+	case "g2":
+		whereStr += " AND personnels.id in (with fd_list as (select id from personnels where (((ADD_MONTHS(IFNULL((select min(start_day) from posts where personnel_id = personnels.id and position_id = (select id from positions where name = '副调研员')),'3000-01-01 00:00:00.000000 +00:00' ),8*12)<= CURDATE()) and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 55 else 50 end)*12) <= CURDATE()))) select personnels.id from personnels left join fd_list on fd_list.id = personnels.id where  personnels.id in (select current_pos.id from current_pos,used_pos where rank_name in('三级高级警长', '三级调研员') and ADD_MONTHS(rank_start_day,(24 + rank_add_month)) <= CURDATE() and current_pos.id = used_pos.id AND ((ADD_MONTHS(IFNULL(fc_start_day, '3000-01-01 00:00:00.000000 +00:00' ),(2*12+IFNULL(fc_add_month, 0))) <= CURDATE() and ADD_MONTHS(personnels.birthday, 48*12) <= CURDATE()) or current_pos.id = fd_list.id or (ADD_MONTHS(IFNULL(zk_start_day, '3000-01-01 00:00:00.000000 +00:00'),(15*12+IFNULL(zk_add_month, 0))) <= CURDATE() and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= CURDATE())\nor (ADD_MONTHS(IFNULL(zk_start_day, '3000-01-01 00:00:00.000000 +00:00'),(20*12+IFNULL(fk_add_month, zk_add_month))) <= CURDATE() and ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 57 else 52 end)*12) <= CURDATE()) or ADD_MONTHS(personnels.birthday, (case personnels.gender when '男' then 59 else 54 end)*12) <= CURDATE())))"
+	}
+
+	return whereStr
+}

@@ -426,3 +426,10 @@ type Log struct {
 	AccountId string        `json:"accountId"`
 	Content   datatype.Clob `json:"content"`
 }
+
+// Setting 设置表
+type Setting struct {
+	Base
+	Title   string        `json:"title"`
+	Content datatype.Clob `json:"content" gorm:"size:8000"`
+}

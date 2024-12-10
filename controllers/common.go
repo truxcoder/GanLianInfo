@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"GanLianInfo/models"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -17,29 +18,45 @@ const (
 	expiration = time.Hour * 24 * 365
 )
 
-func getIdCodeMap() map[string]string {
-	_map := make(map[string]string)
-	var err error
-	if rdb != nil {
-		exist, _ := rdb.Exists(ctx, "idCodeList").Result()
-		if exist == 0 {
-			setIdCodeMap()
-		}
-		if _map, err = rdb.HGetAll(ctx, "idCodeList").Result(); err != nil {
-			log.Error(err)
-		}
-		return _map
+func GetDataFromCache(obj interface{}, key string) (err error) {
+	var (
+		temp string
+	)
+	typ := reflect.TypeOf(obj)
+	if typ == nil || typ.Kind() != reflect.Pointer {
+		log.Errorf("[GetDataFromCache]只能传入指针\n")
+		return
 	}
-	log.Info("redis instance is nil, now get data from database...")
-	return getIdCodeMapFromDB()
+	if rdb != nil {
+		res, _ := rdb.Exists(ctx, key).Result()
+		if res > 0 {
+			if temp, err = rdb.Get(ctx, key).Result(); err != nil {
+				log.Error(err.Error())
+				return
+			}
+			if err = jsoniter.UnmarshalFromString(temp, obj); err != nil {
+				log.Error(err.Error())
+				return
+			}
+		} else {
+			log.Errorf("[GetDataFromCache]未发现key:%s\n", key)
+			err = RedisKeyNotFoundERR
+			return
+		}
+	}
+	return
 }
-
-func setIdCodeMap() {
-	_map := getIdCodeMapFromDB()
+func WriteDataToCache(data interface{}, key string) (err error) {
+	var (
+		temp string
+	)
 	if rdb != nil {
-		rdb.Del(ctx, "idCodeList")
-		rdb.HSet(ctx, "idCodeList", _map)
+		if temp, err = jsoniter.MarshalToString(data); err != nil {
+			return
+		}
+		rdb.Set(ctx, key, temp, expiration)
 	}
+	return
 }
 
 func getIdCodeMapFromDB() map[string]string {
@@ -71,7 +88,7 @@ func getIdFromIdCode(idCode string) int64 {
 	if rdb != nil {
 		exist, _ := rdb.Exists(ctx, "idCodeList").Result()
 		if exist == 0 {
-			setIdCodeMap()
+			setIdCodeMapToCache()
 		}
 		if id, err = rdb.HGet(ctx, "idCodeList", idCode).Int64(); err != nil {
 			return 0
@@ -98,7 +115,7 @@ func getOrganIdFromDepartmentId(departmentId string) string {
 	if rdb != nil {
 		exist, _ := rdb.Exists(ctx, "departmentMap").Result()
 		if exist == 0 {
-			setDepartmentMap()
+			setDepartmentMapToCache()
 		}
 		if id, err = rdb.HGet(ctx, "departmentMap", departmentId).Result(); err != nil {
 			return ""
@@ -108,14 +125,6 @@ func getOrganIdFromDepartmentId(departmentId string) string {
 	log.Info("redis instance is nil, now get data from database...")
 	db.Table("departments").Select("id").Where("bus_org_code = (select bus_org_code from departments where id = ?) and dept_type = 1", departmentId).Limit(1).Find(&d)
 	return d.ID
-}
-
-func setDepartmentMap() {
-	_map := getDepartmentMapFromDB()
-	if rdb != nil {
-		rdb.Del(ctx, "departmentMap")
-		rdb.HSet(ctx, "departmentMap", _map)
-	}
 }
 
 func getDepartmentMapFromDB() map[string]string {
@@ -135,57 +144,39 @@ func getDepartmentMapFromDB() map[string]string {
 	return _map
 }
 
-func getDepartmentSliceFromDB() []models.Department {
-	var (
-		d []models.Department
-	)
-	db.Omit("position").Order("sort desc").Find(&d)
-	return d
+func getDepartmentSliceFromDB() (d []models.Department, err error) {
+	err = db.Omit("position").Order("sort desc").Find(&d).Error
+	return
 }
 
-func setDepartmentSlice() {
-	var result string
-	var err error
-	d := getDepartmentSliceFromDB()
-	if len(d) > 0 {
-		if result, err = jsoniter.MarshalToString(d); err != nil {
-			log.Error(err)
+func getDepartmentSlice() (d []models.Department, err error) {
+	if d, err = getDepartmentSliceFromCache(); err != nil {
+		log.Info("redis instance is nil, now get data from database...")
+		if d, err = getDepartmentSliceFromDB(); err != nil {
+			log.Errorf("[getDepartmentSliceFromDB]%v\n", err.Error())
+			return
 		}
+		return d, nil
 	}
-	if rdb != nil && result != "" {
-		rdb.Del(ctx, "departmentSlice")
-		rdb.Set(ctx, "departmentSlice", result, expiration)
-	}
-}
-
-func getDepartmentSlice() ([]models.Department, error) {
-	var d []models.Department
-	var temp string
-	var err error
-	var result []models.Department
-	if rdb != nil {
-		exist, _ := rdb.Exists(ctx, "departmentSlice").Result()
-		if exist == 0 {
-			setDepartmentSlice()
-		}
-		if temp, err = rdb.Get(ctx, "departmentSlice").Result(); err != nil {
-			log.Error(err)
-			return nil, err
-		}
-		if err = jsoniter.UnmarshalFromString(temp, &result); err != nil {
-			log.Error(err)
-			return nil, err
-		}
-		return result, nil
-	}
-	log.Info("redis instance is nil, now get data from database...")
-	d = getDepartmentSliceFromDB()
-	return d, nil
-}
-
-func GetDepSlice() []models.Department {
-	result, _ := getDepartmentSlice()
-	return result
+	return
+	//if rdb != nil {
+	//	exist, _ := rdb.Exists(ctx, "departmentSlice").Result()
+	//	if exist == 0 {
+	//		setDepartmentSliceToCache()
+	//	}
+	//	if temp, err = rdb.Get(ctx, "departmentSlice").Result(); err != nil {
+	//		log.Error(err)
+	//		return nil, err
+	//	}
+	//	if err = jsoniter.UnmarshalFromString(temp, &result); err != nil {
+	//		log.Error(err)
+	//		return nil, err
+	//	}
+	//	return result, nil
+	//}
+	//log.Info("redis instance is nil, now get data from database...")
+	//d = getDepartmentSliceFromDB()
+	//return d, nil
 }
 
 func WriteLog(c *gin.Context, category LogCategory, content string) {
@@ -197,4 +188,17 @@ func WriteLog(c *gin.Context, category LogCategory, content string) {
 	l.Content = datatype.Clob(content)
 	l.Category = int8(category)
 	db.Create(&l)
+}
+
+// 计算退休年龄
+func getRetireAge(p *posStruct) int {
+	// 女性特殊退休年龄，一，现曾任处级领导职务。二，2019年3月1日前担任副处级非领导职务，例如副调研员。
+	line := time.Date(2019, 3, 1, 0, 0, 0, 0, time.UTC)
+	isLeader := !p.FcStartDay.IsZero() || !p.ZcStartDay.IsZero()
+	//isNonLeader := !getNonLeaderAttainTime(p.NonLeaderPosts, "正副处", 0).IsZero() && getNonLeaderAttainTime(p.NonLeaderPosts, "正副处", 0).Before(line)
+	isNonLeader := getNonLeaderAttainTime(p.NonLeaderPosts, "正副处", 0).Before(line)
+	if p.Gender == "女" && !(isLeader || isNonLeader) {
+		return 55
+	}
+	return 60
 }

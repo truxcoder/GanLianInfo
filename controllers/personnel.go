@@ -60,17 +60,9 @@ func PersonnelList(c *gin.Context) {
 		whereStr  string        //where语句
 	)
 
-	sort := `(case when length(d.level_code)>=3 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,3)) else null end) desc,
-(case when length(d.level_code)>=6 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,6)) else null end) desc,
-(case when length(d.level_code)>=9 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,9)) else null end) desc,
-(case when length(d.level_code)>=12 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,12)) else null end) desc,
-(case when length(d.level_code)>=15 then (select ii.sort from departments ii where ii.level_code = substring(d.level_code,1,15)) else null end) desc, 
-personnels.sort desc nulls first`
-
-	selectStr := "personnels.id,personnels.name,personnels.police_code,personnels.gender,personnels.birthday,personnels.nation,personnels.political,personnels.status,personnels.current_rank,personnels.current_level," +
+	sort := sortStr
+	selectStr := "personnels.id,personnels.name,personnels.police_code,personnels.gender,personnels.birthday,personnels.nation,personnels.political,personnels.status,personnels.current_rank,personnels.current_level,personnels.organ_id," +
 		"d.short_name as department_short_name,o.short_name as organ_short_name"
-	//selectStr := "personnels.*,d.name as department_name,d.short_name as department_short_name," +
-	//	"o.name as organ_name,o.short_name as organ_short_name"
 	joinStr := "left join departments as d on personnels.department_id = d.id " +
 		"left join departments as o on personnels.organ_id = o.id"
 
@@ -383,7 +375,7 @@ func UpdateIdCode(c *gin.Context) {
 		c.JSON(200, r)
 		return
 	}
-	setIdCodeMap()
+	setIdCodeMapToCache()
 	r = gin.H{"code": 20000, "message": "身份证号码更新成功!"}
 	c.JSON(200, r)
 }

@@ -1,8 +1,11 @@
 package controllers
 
 import (
+	"GanLianInfo/utils"
+	"github.com/casbin/casbin/v2"
 	"github.com/gin-gonic/gin"
 	log "github.com/truxcoder/truxlog"
+	"strings"
 )
 
 type RBAC struct {
@@ -45,8 +48,19 @@ func PermissionCheck(c *gin.Context) {
 		return
 	}
 	for _, v := range rbac.Act {
-		ok, _ := enforcer.Enforce(rbac.Sub, rbac.Obj, v)
-		result[v] = ok
+		if strings.Contains(v, "_") {
+			var has bool
+			if has, err = utils.HasBothPermission(enforcer, rbac.Sub, rbac.Obj, v); err != nil {
+				log.Error(err)
+				result[v] = has
+				continue
+			}
+			result[v] = has
+		} else {
+			ok, _ := enforcer.Enforce(rbac.Sub, rbac.Obj, v)
+			result[v] = ok
+		}
+
 	}
 	r = gin.H{"code": 20000, "data": &result}
 	c.JSON(200, r)
@@ -266,4 +280,8 @@ func PermissionDelete(c *gin.Context) {
 	c.JSON(200, r)
 	return
 
+}
+
+func GetEnforcer() (enforcer *casbin.Enforcer) {
+	return enforcer
 }

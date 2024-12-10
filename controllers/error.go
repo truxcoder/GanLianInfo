@@ -1,6 +1,13 @@
 package controllers
 
+import "github.com/pkg/errors"
+
 type ErrorCode int
+
+var (
+	RedisKeyNotFoundERR = errors.New("redis key not found")
+	RedisNullERR        = errors.New("redis instance not found")
+)
 
 const (
 	CodeUnique ErrorCode = iota + 1000

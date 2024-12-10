@@ -2,14 +2,17 @@ package controllers
 
 import (
 	"GanLianInfo/dao"
+	"GanLianInfo/utils"
 	"bytes"
 	"context"
+	model2 "github.com/casbin/casbin/v2/model"
 	"go/ast"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -40,6 +43,7 @@ var (
 	ctx       = context.Background()
 	enforcer  *casbin.Enforcer
 	reConnect bool
+	lock      sync.Mutex
 )
 
 // 列表页排序字典
@@ -96,19 +100,23 @@ func redisInit() {
 }
 
 func casbinInit() {
-	var err error
-	var a *gormadapter.Adapter
+	var (
+		err error
+		a   *gormadapter.Adapter
+	)
 	gormadapter.TurnOffAutoMigrate(db)
 	a, err = gormadapter.NewAdapterByDB(db)
 	if err != nil {
 		log.Error(err)
 	}
 	dir, _ := os.Getwd()
-	//path := filepath.Dir(dir)
-	//log.Infof("path:%s\n", dir)
-	model := filepath.Join(dir, "model.conf")
-
-	enforcer, err = casbin.NewEnforcer(model, a)
+	if utils.IsDevEnv() {
+		model, _ := model2.NewModelFromString(RbacModel)
+		enforcer, err = casbin.NewEnforcer(model, a)
+	} else {
+		model := filepath.Join(dir, "model.conf")
+		enforcer, err = casbin.NewEnforcer(model, a)
+	}
 	if err != nil {
 		log.Error(err)
 	}

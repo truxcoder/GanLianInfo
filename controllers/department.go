@@ -134,3 +134,38 @@ func DepartmentUpdate(c *gin.Context) {
 	r = gin.H{"message": "更新成功！", "code": 20000}
 	c.JSON(200, r)
 }
+
+// DepartmentHighLevel 高级警长职数占用
+func DepartmentHighLevel(c *gin.Context) {
+	var (
+		d   []models.Department
+		r   gin.H
+		err error
+		dp  []struct {
+			OrganId string `json:"organId"`
+			G1      int64  `json:"g1"` //一级高级警长
+			G2      int64  `json:"g2"` //二级高级警长
+			G3      int64  `json:"g3"` //三级高级警长
+			G4      int64  `json:"g4"` //四级高级警长
+		}
+	)
+
+	selectStr := "id,name,short_name,sort,position"
+	result := db.Table("departments").Select(selectStr).Where("dept_type = ?", 1).Order("sort desc,level_code asc").Find(&d)
+	err = result.Error
+	if err != nil {
+		//r = Errors.ServerError
+		r = GetError(CodeServer)
+		c.JSON(200, r)
+		return
+	}
+	selectStr = "personnels.organ_id, count(case when positions.name = '一级高级警长' and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) g1, " +
+		"count(case when positions.name = '二级高级警长' and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) g2, " +
+		"count(case when positions.name = '三级高级警长' and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) g3, " +
+		"count(case when positions.name = '四级高级警长' and posts.end_day = '0001-01-01 00:00:00.000000 +00:00' then 1 else null end) g4"
+	JoinStr := "left join positions on posts.position_id = positions.id " +
+		"left join personnels on posts.personnel_id = personnels.id"
+	db.Table("posts").Select(selectStr).Joins(JoinStr).Group("personnels.organ_id").Find(&dp)
+	r = gin.H{"code": 20000, "data": &d, "position": &dp}
+	c.JSON(200, r)
+}

@@ -297,7 +297,7 @@ func DataSure(c *gin.Context) {
 			c.JSON(200, r)
 			return
 		}
-		setIdCodeMap()
+		setIdCodeMapToCache()
 		r = gin.H{"code": 20000, "message": "添加成功!"}
 		c.JSON(200, r)
 		return
@@ -323,7 +323,7 @@ func DataSure(c *gin.Context) {
 			return
 		}
 		db.Where("id_code in ?", &id.Id).Delete(models.Personnel{})
-		setIdCodeMap()
+		setIdCodeMapToCache()
 		r = gin.H{"code": 20000, "message": "删除成功!"}
 		c.JSON(200, r)
 		return
@@ -386,8 +386,8 @@ func DepartmentSure(c *gin.Context) {
 			c.JSON(200, r)
 			return
 		}
-		setDepartmentMap()
-		setDepartmentSlice()
+		setDepartmentMapToCache()
+		setDepartmentSliceToCache()
 		r = gin.H{"code": 20000, "message": "添加成功!"}
 		c.JSON(200, r)
 		return
@@ -397,8 +397,8 @@ func DepartmentSure(c *gin.Context) {
 			//log.Successf("v:%+v\n", v)
 			db.Table("departments").Where("id = ?", v.ID).Updates(&v)
 		}
-		setDepartmentMap()
-		setDepartmentSlice()
+		setDepartmentMapToCache()
+		setDepartmentSliceToCache()
 		r = gin.H{"code": 20000, "message": "更新成功!"}
 		c.JSON(200, r)
 		return
@@ -414,8 +414,8 @@ func DepartmentSure(c *gin.Context) {
 			return
 		}
 		db.Where("id in ?", id.Id).Delete(models.Department{})
-		setDepartmentMap()
-		setDepartmentSlice()
+		setDepartmentMapToCache()
+		setDepartmentSliceToCache()
 		r = gin.H{"code": 20000, "message": "删除成功!"}
 		c.JSON(200, r)
 		return
@@ -425,7 +425,7 @@ func DepartmentSure(c *gin.Context) {
 func GetPersonnelDataFromInterface() []byte {
 	url := "http://30.29.2.6:8686/unionapi/user/list/json"
 	contentType := "application/x-www-form-urlencoded"
-	baseTime := time.Date(2022, 6, 21, 12, 0, 0, 0, time.Local)
+	baseTime := time.Date(2024, 7, 11, 12, 0, 0, 0, time.Local)
 	if rdb != nil {
 		res, _ := rdb.Exists(ctx, "updateTime").Result()
 		if res > 0 {

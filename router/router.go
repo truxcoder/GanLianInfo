@@ -101,6 +101,7 @@ func Register() *gin.Engine {
 		department.POST("headcount", controllers.HeadcountList)
 		department.POST("update", controllers.DepartmentUpdate)
 		department.POST("position", controllers.DepartmentPosition)
+		department.POST("high_level", controllers.DepartmentHighLevel)
 	}
 	training := router.Group("training", authMiddleware)
 	{
@@ -233,10 +234,17 @@ func Register() *gin.Engine {
 	{
 		analysis.POST("police", controllers.AnalysisPoliceTeamData)
 		analysis.POST("leader", controllers.AnalysisLeaderTeamData)
+		analysis.POST("high_level", controllers.AnalysisHighLevelData)
+		analysis.POST("sync", controllers.SyncPostData)
 	}
 	leader := router.Group("leader", authMiddleware)
 	{
 		leader.POST("list", controllers.LeaderList)
+	}
+	setting := router.Group("setting", authMiddleware)
+	{
+		setting.POST("list", controllers.SettingList)
+		setting.POST("update", controllers.SettingUpdate)
 	}
 	talent := router.Group("talent", authMiddleware)
 	{
