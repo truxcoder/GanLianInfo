@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"GanLianInfo/models"
+	"github.com/truxcoder/moment"
 	"reflect"
 	"strconv"
 	"time"
@@ -201,4 +202,40 @@ func getRetireAge(p *posStruct) int {
 		return 55
 	}
 	return 60
+}
+
+// 设置退休日期
+func (p *posStruct) setRetireDay() {
+	var base int        //原退休年龄
+	var start time.Time //国家规定的起算时间，男1965年1月1日，女1970年1月1日
+	loc := p.Birthday.Location()
+	// 女性特殊退休年龄，一，现曾任处级领导职务。二，2019年3月1日前担任副处级非领导职务，例如副调研员。
+	line := time.Date(2019, 3, 1, 0, 0, 0, 0, loc)
+	// 是否担任过处级领导职务
+	isLeader := !p.FcStartDay.IsZero() || !p.ZcStartDay.IsZero()
+	// 是否担任过套改之前的处级非领导职务
+	isNonLeader := getNonLeaderAttainTime(p.NonLeaderPosts, "正副处", 0).Before(line)
+	if p.Gender == "男" {
+		base = 60
+		start = time.Date(1965, 1, 1, 0, 0, 0, 0, loc)
+	} else if isLeader || isNonLeader {
+		base = 60
+		start = time.Date(1965, 1, 1, 0, 0, 0, 0, loc)
+	} else {
+		base = 55
+		start = time.Date(1970, 1, 1, 0, 0, 0, 0, loc)
+	}
+	sub := moment.MonthDiffer(p.Birthday, start)
+	if sub < 0 {
+		//p.RetireDay = p.Birthday.AddDate(base, 0, 0)
+		p.RetireDay = moment.AddDateByMonth(p.Birthday, base, 0)
+		return
+	}
+	// 经过计算，如果延迟的月份超过36个月，则取36个月。
+	if sub/4+1 > 36 {
+		sub = 36
+	} else {
+		sub = sub/4 + 1
+	}
+	p.RetireDay = moment.AddDateByMonth(p.Birthday, base, sub)
 }

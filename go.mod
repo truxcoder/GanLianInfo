@@ -1,6 +1,8 @@
 module GanLianInfo
 
-go 1.23
+go 1.23.2
+
+toolchain go1.23.4
 
 //replace faker => ../faker
 
@@ -60,6 +62,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/thoas/go-funk v0.8.0 // indirect
 	github.com/truxcoder/dm v0.0.8 // indirect
+	github.com/truxcoder/moment v0.1.0 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b // indirect
 	golang.org/x/sys v0.5.0 // indirect

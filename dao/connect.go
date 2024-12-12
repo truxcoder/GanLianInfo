@@ -32,7 +32,8 @@ func init() {
 	if pathExists(file) {
 		path = file
 	} else {
-		path = "D:\\server\\ganlian\\config\\config.yaml"
+		//path = "D:\\server\\ganlian\\config\\config.yaml"
+		path = filepath.Join(dir, "config/config.yaml")
 	}
 	err := cleanenv.ReadConfig(path, &cfg)
 	if err != nil {

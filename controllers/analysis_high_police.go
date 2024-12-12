@@ -13,14 +13,21 @@ func AnalysisHighLevelData(c *gin.Context) {
 	var (
 		err error
 		r   gin.H
+		d   models.Department
 		hl  []HighLevelPolice
 	)
+	selectStr := "id,name,short_name,sort,position"
+	if err = db.Select(selectStr).Where("name = ?", "四川省成都强制隔离戒毒所").Find(&d).Error; err != nil {
+		r = GetError(CodeServer)
+		c.JSON(200, r)
+		return
+	}
 	if hl, err = getAnalysisHighLevelData(); err != nil {
 		r = GetError(CodeServer)
 		c.JSON(200, r)
 		return
 	}
-	r = gin.H{"code": 20000, "data": hl}
+	r = gin.H{"code": 20000, "organ": d, "data": hl}
 	c.JSON(200, r)
 }
 
@@ -61,10 +68,10 @@ func getAnalysisHighLevelData() (hl []HighLevelPolice, err error) {
 		if v, exist := nonLeaderPostMap[p.ID]; exist {
 			p.NonLeaderPosts = v
 		}
-		//log.Successf("%s-%s-%d\n", p.Name, p.Gender, getRetireAge(&p))
-		p.RetireDay = p.Birthday.AddDate(getRetireAge(&p), 0, 0)
+		p.setRetireDay()
 		h.RetireDay = p.RetireDay
-		// 如果正科开始日期不为空而副科开始日期为空，则将副科开始日期设为正科开始日期。解决部分人员副科任职经历未录入或直接任正科的情况。
+		// 如果正科开始日期不为空而副科开始日期为空，则将副科开始日期设为正科开始日期。
+		// 解决部分人员副科任职经历未录入或直接任正科的情况。
 		if !p.ZkStartDay.IsZero() && p.FkStartDay.IsZero() {
 			p.FkStartDay = p.ZkStartDay
 		}
